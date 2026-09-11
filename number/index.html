@@ -1,0 +1,3203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>星あつめ</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=Orbitron:wght@500;700&display=swap');
+
+  :root{
+    --sky-top:#005481;
+    --sky-mid:#012a44;
+    --sky-bottom:#000a14;
+    --ink:#EAF3FF;
+    --ink-soft:#8FB8D9;
+    --ink-dim:#4E6E8C;
+    --aurora-a:#6FD0FF;
+    --aurora-b:#B892F0;
+    --aurora-c:#FF9AD5;
+    --aurora-d:#FFD97A;
+    --aurora-e:#4FE3C1;
+    --navy-num:#001a33;
+    --gold:#FFD97A;
+    --gold-deep:#F2B84B;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  html,body{
+    margin:0; padding:0; height:100%;
+    font-family:'M PLUS Rounded 1c', sans-serif;
+    color:var(--ink);
+    overflow:hidden;
+    touch-action:manipulation;
+    background:#00060c;
+  }
+
+  body{ display:flex; align-items:center; justify-content:center; }
+
+  .sky{
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(0,84,129,.9), transparent 55%),
+      linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 45%, var(--sky-bottom) 100%);
+    z-index:0;
+  }
+  .nebula{ position:fixed; border-radius:50%; filter:blur(40px); opacity:.28; pointer-events:none; z-index:0; }
+  .nebula.n1{ width:280px; height:280px; background:var(--aurora-b); top:6%; left:-8%; }
+  .nebula.n2{ width:240px; height:240px; background:var(--aurora-e); bottom:4%; right:-10%; }
+  .nebula.n3{ width:200px; height:200px; background:var(--aurora-c); top:38%; right:-14%; opacity:.18; }
+
+  .star-dot{ position:fixed; border-radius:50%; background:#fff; pointer-events:none; z-index:0; animation:twinkle-dot ease-in-out infinite; }
+  @keyframes twinkle-dot{ 0%,100%{ opacity:.15; } 50%{ opacity:.9; } }
+
+  .stage{
+    position:relative; width:100%; max-width:430px; height:100vh; max-height:900px;
+    display:flex; flex-direction:column; padding:16px 16px 20px; z-index:1;
+  }
+
+  /* ---- ヘッダー：1行だけ。右端に星空マップアイコン ---- */
+  .top-bar{
+    position:absolute; top:16px; left:16px; right:16px; z-index:60;
+    display:flex; align-items:center; justify-content:flex-end;
+  }
+
+  /* ---- ヘッダー右端のアイコン（天体望遠鏡＝Map） ---- */
+  .stage-icon-row{ display:flex; align-items:center; gap:6px; }
+  .mini-icon-btn{
+    width:40px; height:40px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:none; border:none;
+    cursor:pointer;
+    transition:transform .15s ease, filter .2s ease;
+  }
+  .mini-icon-btn svg{ width:24px; height:24px; display:block; overflow:visible; }
+  .mini-icon-btn:active{ transform:scale(.85); }
+  /* 天体望遠鏡：暗い背景でも一目で分かる、はっきりしたシアンの光彩 */
+  .telescope-icon{ color:#BFE6FF; }
+  .telescope-icon svg{
+    filter:
+      drop-shadow(0 0 4px rgba(143,208,255,.9))
+      drop-shadow(0 0 9px rgba(111,208,255,.5));
+  }
+
+  #playArea{ display:flex; flex-direction:column; flex:1 1 auto; min-height:0; }
+
+  header{ text-align:center; flex:0 0 auto; margin-top:30px; }
+  h1{
+    margin:2px 0 0; font-size:18px; font-weight:800; letter-spacing:.01em;
+    color:var(--ink); text-shadow:0 0 14px rgba(111,208,255,.55);
+  }
+  h1 .sub{
+    display:block; font-family:'Orbitron', sans-serif; font-size:10px; font-weight:500;
+    letter-spacing:.2em; color:var(--aurora-a); margin-top:4px;
+    text-shadow:0 0 8px rgba(111,208,255,.6);
+  }
+
+  .progress{ display:flex; justify-content:center; gap:10px; margin-top:14px; }
+  .progress .star-pip{ font-size:13px; color:#ffffff2a; transition:color .3s ease, transform .3s ease, text-shadow .3s ease; }
+  .progress .star-pip.done{ color:var(--gold); text-shadow:0 0 8px rgba(255,217,122,.85); transform:scale(1.15); }
+  .progress .star-pip.current{ color:var(--ink); text-shadow:0 0 8px rgba(234,243,255,.7); }
+
+  /* ---- ステージ4：はじまりの数。ストックの数字と同じ、くっきり澄んだ白で ---- */
+  .origin-number{
+    display:none;
+    text-align:center;
+    font-size:15px;
+    font-weight:700;
+    color:#ffffff;
+    opacity:.82;
+    margin-top:10px;
+    letter-spacing:.04em;
+    text-shadow:0 0 8px rgba(255,255,255,.45), 0 0 16px rgba(255,255,255,.2);
+    transition:opacity .4s ease;
+  }
+
+  /* ---- 上部の答え／ヒント／ストックエリア ---- */
+  .slot-area{
+    flex:0 0 auto; margin-top:18px; margin-bottom:12px; min-height:44px;
+    max-width:300px; margin-left:auto; margin-right:auto;
+    display:flex; align-items:center; justify-content:center;
+    flex-wrap:wrap; gap:9px;
+    transition:opacity .4s ease, transform .4s ease;
+  }
+  .slot{
+    width:42px; height:42px; border-radius:50%; flex:0 0 auto;
+    position:relative;
+    border:1.5px dashed rgba(255,255,255,.28); color:var(--ink-dim);
+    background:rgba(255,255,255,.02); transition:border-color .3s ease, background .3s ease, box-shadow .3s ease;
+  }
+  .slot.filled{
+    border:1.5px solid rgba(255,255,255,.55);
+    background:rgba(255,255,255,.06);
+    box-shadow:0 0 10px rgba(255,255,255,.18);
+    animation:slot-fill .5s cubic-bezier(.26,1.6,.5,1);
+  }
+  .slot .num-label{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-weight:800; color:var(--ink); pointer-events:none; line-height:1;
+  }
+  @keyframes slot-fill{
+    0%{ transform:scale(.3); opacity:0; }
+    60%{ transform:scale(1.25); opacity:1; }
+    100%{ transform:scale(1); }
+  }
+  .slot-area.ascend-stock{ animation:stock-ascend .9s ease-in-out forwards; }
+  @keyframes stock-ascend{
+    0%{ transform:translateY(0); opacity:1; }
+    100%{ transform:translateY(-130px); opacity:0; }
+  }
+
+  .main-zone{ flex:1 1 auto; display:flex; align-items:center; justify-content:center; position:relative; min-height:0; }
+
+  .main-bubble-wrap{
+    position:relative; width:min(45vw, 188px); height:min(45vw, 188px);
+    animation:float 5s ease-in-out infinite;
+    transition:width .55s ease, height .55s ease, opacity .4s ease;
+  }
+  @keyframes float{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-10px); } }
+  .main-bubble-wrap.ascend{ animation:wrap-ascend 1s ease-in-out forwards; }
+  @keyframes wrap-ascend{
+    0%{ transform:translateY(0) scale(1); opacity:1; }
+    100%{ transform:translateY(-170px) scale(.32); opacity:0; }
+  }
+  /* ステージ4：星が昇りきってから次の星雲が現れるまでの「静寂の間」は、
+     クラスの付け替え（CSSトランジションのタイミング競合）による1フレームの描画漏れを避けるため、
+     JS側で直接 visibility / opacity のインラインスタイルを操作して物理的に非表示にする（下記JS参照）。 */
+
+  /* ---- 中央の親シャボン玉：虹色・オーロラの半透明ガラス質感（完全維持） ---- */
+  .main-bubble{
+    width:100%; height:100%; border-radius:50%; position:relative; overflow:hidden;
+    cursor:pointer;
+    background:
+      radial-gradient(circle at 30% 22%, rgba(255,255,255,.55), transparent 34%),
+      radial-gradient(circle at 75% 78%, rgba(255,255,255,.12), transparent 42%),
+      linear-gradient(135deg, rgba(111,208,255,.22), rgba(184,146,240,.22) 40%, rgba(255,154,213,.2) 70%, rgba(79,227,193,.22));
+    border:1.5px solid rgba(255,255,255,.45);
+    box-shadow:0 0 30px rgba(111,208,255,.35), 0 0 58px rgba(184,146,240,.22), inset 0 0 30px rgba(255,255,255,.1);
+    display:flex; align-items:center; justify-content:center;
+    transition:background .5s ease, border-color .5s ease, box-shadow .5s ease, filter .5s ease;
+  }
+  .main-bubble .aurora-layer{
+    position:absolute; inset:-40%; pointer-events:none;
+    background:conic-gradient(from 0deg, var(--aurora-a), var(--aurora-b), var(--aurora-c), var(--aurora-d), var(--aurora-e), var(--aurora-a));
+    opacity:.3; mix-blend-mode:screen; animation:spin-slow 9s linear infinite;
+  }
+  @keyframes spin-slow{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
+  .main-bubble .glass-highlight{
+    position:absolute; top:8%; left:14%; width:46%; height:36%; border-radius:50%; pointer-events:none;
+    background:radial-gradient(circle, rgba(255,255,255,.6), transparent 70%); filter:blur(2px);
+  }
+
+  /* 数字はぼかしなし・純白ソリッド・最前面 */
+  .main-bubble .main-number{ position:relative; z-index:5; }
+
+  /* ---- 誤答：中央の親シャボン玉（星雲）だけが、ゼリーのように「ぽよん」と揺れる（全ステージ共通） ---- */
+  .main-bubble.jelly-shake{ animation:jelly-wobble .75s ease-in-out both; }
+  @keyframes jelly-wobble{
+    0%{ border-radius:50%; transform:scale(1,1); }
+    25%{ border-radius:53% 47% 48% 52%/47% 53% 46% 54%; transform:scale(.96,1.045); }
+    50%{ border-radius:47% 53% 52% 48%/53% 47% 54% 46%; transform:scale(1.035,.965); }
+    75%{ border-radius:51% 49% 49% 51%/49% 51% 49% 51%; transform:scale(.985,1.015); }
+    100%{ border-radius:50%; transform:scale(1,1); }
+  }
+
+  .main-bubble.pulse-correct{ animation:pulse-glow .4s ease; }
+  @keyframes pulse-glow{
+    0%{ box-shadow:0 0 30px rgba(111,208,255,.35), 0 0 58px rgba(184,146,240,.22), inset 0 0 30px rgba(255,255,255,.1); transform:scale(1); }
+    40%{ box-shadow:0 0 56px rgba(255,217,122,.7), 0 0 90px rgba(184,146,240,.5), inset 0 0 40px rgba(255,255,255,.22); transform:scale(1.045); }
+    100%{ box-shadow:0 0 30px rgba(111,208,255,.35), 0 0 58px rgba(184,146,240,.22), inset 0 0 30px rgba(255,255,255,.1); transform:scale(1); }
+  }
+
+  /* ---- 親泡（星雲）を直接タップ（まだ割れる状態）：ゼリー・水風船のような「ぽよん」 ---- */
+  .main-bubble.poyon-bounce{ animation:poyon-bounce .55s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes poyon-bounce{
+    0%{ transform:scale(1,1); border-radius:50%; }
+    28%{ transform:scale(1.09,.88); border-radius:56% 44% 54% 46%/44% 56% 44% 56%; }
+    52%{ transform:scale(.93,1.1); border-radius:46% 54% 44% 56%/56% 44% 56% 44%; }
+    74%{ transform:scale(1.03,.97); border-radius:51% 49% 50% 50%/49% 51% 50% 50%; }
+    100%{ transform:scale(1,1); border-radius:50%; }
+  }
+
+  /* ---- かたい星（素数）を直接タップ：「カチン！」と澄んだ硬い手応え ---- */
+  .main-bubble.kachin-flash{ animation:kachin-flash .42s cubic-bezier(.2,.9,.3,1); }
+  @keyframes kachin-flash{
+    0%{ transform:scale(1); filter:brightness(1); }
+    28%{ transform:scale(1.1); filter:brightness(1.7); box-shadow:0 0 44px rgba(255,255,255,.95), 0 0 84px rgba(200,222,255,.6), inset 0 0 30px rgba(255,255,255,.3); }
+    58%{ transform:scale(.96); filter:brightness(1.15); }
+    100%{ transform:scale(1); filter:brightness(1); }
+  }
+
+  /* ---- クリア：パチンと弾ける（完全維持） ---- */
+  .main-bubble.bubble-pop{ animation:bubble-pop .38s cubic-bezier(.4,0,.6,1) forwards; }
+  @keyframes bubble-pop{
+    0%{ transform:scale(1); opacity:1; filter:blur(0); }
+    45%{ transform:scale(1.32); opacity:.8; filter:blur(0); }
+    100%{ transform:scale(.15); opacity:0; filter:blur(2px); }
+  }
+  .main-bubble.arriving{ animation:star-arrive .5s cubic-bezier(.26,1.6,.5,1); }
+  @keyframes star-arrive{
+    0%{ transform:scale(.3); opacity:0; } 70%{ transform:scale(1.1); opacity:1; } 100%{ transform:scale(1); }
+  }
+
+  .main-number{
+    font-size:min(13vw, 50px); font-weight:800; color:var(--ink);
+    text-shadow:0 0 16px rgba(234,243,255,.65), 0 0 30px rgba(111,208,255,.4); z-index:2;
+    pointer-events:none;
+  }
+
+  /* ---------------------------------------------------------
+     ふっくら丸みの発光星（SVGスプライン生成）— ゴールド／翡翠専用
+     --------------------------------------------------------- */
+  .soft-star{
+    position:relative;
+    width:100%; height:100%;
+    display:flex; align-items:center; justify-content:center;
+    animation:star-breathe 3.6s ease-in-out infinite;
+  }
+  .soft-star svg{
+    width:100%; height:100%; display:block;
+    animation:star-glow-pulse 4.2s ease-in-out infinite;
+  }
+  @keyframes star-breathe{
+    0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.035); }
+  }
+  @keyframes star-glow-pulse{
+    0%,100%{
+      filter:
+        drop-shadow(0 0 10px rgba(255,225,160,.7))
+        drop-shadow(0 0 22px rgba(242,184,90,.5))
+        drop-shadow(0 0 40px rgba(255,246,224,.28));
+    }
+    50%{
+      filter:
+        drop-shadow(0 0 16px rgba(255,225,160,1))
+        drop-shadow(0 0 34px rgba(242,184,90,.75))
+        drop-shadow(0 0 58px rgba(255,246,224,.4));
+    }
+  }
+  /* ---- 素数専用：11面カットの静止クリスタル星（直立・呼吸や拡縮のアニメーションなし／エッジはシャープなまま） ---- */
+  .soft-star.diamond{
+    position:relative;
+    width:100%; height:100%;
+    display:block;
+    animation:none;
+  }
+  .soft-star.diamond svg{
+    display:block;
+    width:100%; height:100%;
+    animation:none;
+    /* 外枠（バウンディングサイズ）は合成星・ゴールド星と同一のまま、見た目の面積だけ微調整 */
+    transform:scale(1.07);
+    filter:
+      drop-shadow(0 0 10px rgba(255,255,255,.9))
+      drop-shadow(0 0 22px rgba(230,200,250,.5))
+      drop-shadow(0 0 38px rgba(255,214,235,.3));
+  }
+
+  .star-form{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    opacity:0; transform:scale(0) rotate(0deg); pointer-events:none; z-index:5;
+  }
+  .star-form .soft-star{ width:64%; height:64%; }
+  .star-form.show-star{ animation:star-bloom .9s cubic-bezier(.22,.9,.35,1) forwards; }
+  @keyframes star-bloom{
+    0%{ opacity:0; transform:scale(.3) rotate(0deg); }
+    55%{ opacity:1; transform:scale(1.14) rotate(210deg); }
+    100%{ opacity:1; transform:scale(1) rotate(360deg); }
+  }
+
+  .particle{ position:fixed; width:8px; height:8px; border-radius:50%; pointer-events:none; z-index:30; }
+
+  /* ---------- choices：4列×2段の均等グリッド。数字は独立レイヤーとして重ねる ---------- */
+  .choices{
+    flex:0 0 auto; display:grid; grid-template-columns:repeat(4, 1fr);
+    gap:13px 12px; margin-top:12px; padding:0 2px; justify-items:center;
+  }
+  .choice-btn{
+    width:88%; aspect-ratio:1/1; border-radius:50%; border:1.5px solid rgba(255,255,255,.5);
+    font-family:inherit; padding:0;
+    cursor:pointer; position:relative; overflow:visible;
+    background:none;
+  }
+  .choice-btn .bubble-fill{
+    position:absolute; inset:0; border-radius:50%; overflow:hidden;
+    background:
+      radial-gradient(circle at 30% 22%, rgba(255,255,255,.75), transparent 32%),
+      radial-gradient(circle at 75% 78%, rgba(255,255,255,.18), transparent 40%),
+      linear-gradient(135deg, rgba(111,208,255,.28), rgba(184,146,240,.28) 40%, rgba(255,154,213,.26) 70%, rgba(79,227,193,.28));
+    box-shadow:
+      0 0 15px var(--glow-color, rgba(111,208,255,.42)),
+      inset 0 0 11px rgba(255,255,255,.18),
+      inset 0 -5px 8px rgba(0,0,0,.12);
+  }
+  .choice-btn .bubble-fill svg{ width:100%; height:100%; display:block; }
+  .choice-btn .bubble-fill::before{
+    content:''; position:absolute; inset:-60%; pointer-events:none;
+    background:conic-gradient(from 0deg, var(--aurora-a), var(--aurora-b), var(--aurora-c), var(--aurora-d), var(--aurora-e), var(--aurora-a));
+    opacity:.22; mix-blend-mode:screen; animation:spin-slow 7s linear infinite;
+  }
+  .choice-btn .bubble-fill::after{
+    content:''; position:absolute; top:10%; left:16%; width:38%; height:28%; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,.85), transparent 72%); filter:blur(1px);
+  }
+  /* 数字はコンテナのサイズ制約から独立した、丸の上のレイヤーとして重ねる。
+     お題の数字よりも一回り小さく、細身で繊細なバランスに。 */
+  .choice-btn .num-label{
+    position:absolute; inset:0; z-index:3;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; line-height:1; color:var(--ink);
+    text-shadow:0 0 8px rgba(255,255,255,.5), 0 1px 1px rgba(0,0,0,.15);
+    pointer-events:none; white-space:nowrap;
+  }
+  .choice-btn:focus-visible{ outline:2px solid var(--gold-deep); outline-offset:3px; }
+  .choice-btn.h0{ --glow-color: rgba(111,208,255,.5); }
+  .choice-btn.h1{ --glow-color: rgba(184,146,240,.5); }
+  .choice-btn.h2{ --glow-color: rgba(255,154,213,.5); }
+  .choice-btn.h3{ --glow-color: rgba(79,227,193,.5); }
+
+  .choice-btn.collected .bubble-fill,
+  .choice-btn.collected .num-label{ opacity:.2; filter:grayscale(.5); }
+  .choice-btn.collected{ pointer-events:none; }
+
+  /* 新しい因数が空き枠に出現するときだけの「ぷくっ」演出（誤答時には使用しない） */
+  .choice-btn.reveal-pop .bubble-fill,
+  .choice-btn.reveal-pop .num-label{ animation:poku-pop .5s cubic-bezier(.26,1.6,.5,1); }
+  @keyframes poku-pop{
+    0%{ transform:scale(.15); opacity:.25; }
+    60%{ transform:scale(1.2); opacity:1; }
+    100%{ transform:scale(1); opacity:1; }
+  }
+
+  /* ---------- result screen：宇宙の余白をしっかり残した凝縮配置 ---------- */
+  .result-overlay{
+    position:absolute; inset:0;
+    background:transparent;
+    opacity:0; pointer-events:none; transition:opacity .5s ease;
+    z-index:50; overflow:hidden;
+  }
+  .result-overlay.show{ opacity:1; pointer-events:auto; }
+
+  .result-header{
+    position:absolute; top:46px; left:0; right:0; text-align:center; z-index:2;
+  }
+  .result-header h2{
+    font-size:18px; margin:2px 0 0; color:var(--ink);
+    text-shadow:0 0 14px rgba(111,208,255,.5);
+  }
+  .result-header .sub{
+    display:block; font-family:'Orbitron', sans-serif; font-size:9px; letter-spacing:.28em;
+    color:var(--aurora-a); margin-top:6px;
+  }
+
+  /* --- [一時的] 動作確認用テストボタン：本番リリース時にはこのブロックごと削除してよい --- */
+  .debug-test-area{
+    position:absolute; right:10px; bottom:10px; z-index:5;
+    display:flex; flex-direction:column; align-items:flex-end; gap:6px;
+  }
+  .debug-test-btn{
+    font-family:inherit;
+    font-size:9.5px;
+    letter-spacing:.02em;
+    color:rgba(255,220,220,.85);
+    background:rgba(40,10,14,.55);
+    border:1px dashed rgba(255,150,150,.4);
+    border-radius:8px;
+    padding:6px 9px;
+    cursor:pointer;
+  }
+  .debug-test-btn:hover{ background:rgba(255,120,120,.18); }
+  .debug-test-btn:active{ transform:scale(.96); }
+
+  .result-field{ position:absolute; inset:0; z-index:1; }
+
+  .result-star{
+    position:absolute;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0;
+    animation:res-appear .8s ease forwards;
+  }
+  .result-star .soft-star{ position:absolute; inset:0; }
+  /* 数字は素数（ダイヤモンド）・合成数（翡翠）・九九（ゴールド）のどの星でも共通の外側オーバーレイに統一 */
+  .result-star .num{
+    position:relative; z-index:3;
+    color:var(--navy-num);
+    font-weight:800;
+    line-height:1;
+    white-space:nowrap;
+    text-shadow: 0 1px 0 rgba(255,255,255,.35);
+  }
+  /* 素数の星：純白・プリズムの硬質な質感に合わせて数字も澄んだ濃紺でくっきりと */
+  .result-star.is-prime-star .num{
+    text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(255,255,255,.5);
+  }
+  /* 合成数の星：翡翠色の落ち着いた鉱物カラーに合わせた数字の馴染ませ */
+  .result-star.is-composite-star .num{
+    text-shadow: 0 1px 0 rgba(255,255,255,.35), 0 0 8px rgba(180,240,220,.4);
+  }
+  @keyframes res-appear{
+    0%{ opacity:0; transform:scale(0) rotate(-15deg); }
+    65%{ opacity:1; transform:scale(1.14) rotate(4deg); }
+    100%{ opacity:1; transform:scale(1) rotate(var(--final-tilt, 0deg)); }
+  }
+
+  .result-actions{
+    position:absolute; left:50%; bottom:22px; transform:translateX(-50%); z-index:3;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .replay-btn{
+    font-family:'Orbitron', sans-serif; font-size:12px; letter-spacing:.1em;
+    font-weight:700; color:var(--ink-soft);
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.3);
+    padding:11px 18px; border-radius:24px;
+    box-shadow:0 0 16px rgba(111,208,255,.25);
+    cursor:pointer;
+    backdrop-filter:blur(3px);
+    transition:opacity .2s ease, transform .15s ease;
+    white-space:nowrap;
+  }
+  .replay-btn:active{ transform:scale(.96); }
+  .map-link-btn{
+    font-family:'M PLUS Rounded 1c', sans-serif; font-size:12.5px; font-weight:700;
+    color:var(--aurora-a); background:none; border:none; padding:2px 6px;
+    cursor:pointer; text-decoration:underline; text-underline-offset:3px;
+    text-shadow:0 0 8px rgba(111,208,255,.35);
+    transition:transform .15s ease, opacity .2s ease;
+    white-space:nowrap;
+  }
+  .map-link-btn:active{ transform:scale(.95); }
+
+  /* ---- スクショ対策：ステージ名などの文字ラベルは機能を保ったまま視覚的にのみ隠す ---- */
+  .visually-hidden{
+    position:absolute !important; width:1px; height:1px;
+    padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+
+  /* ---- 望遠鏡で覗く星空マップ：画面全体を覆うフルスクリーン表示 ---- */
+  .map-overlay{
+    position:fixed; inset:0; z-index:70;
+    width:100vw; height:100vh;
+    background:#01020a;
+    opacity:0; pointer-events:none; transition:opacity .45s ease;
+  }
+  .map-overlay.show{ opacity:1; pointer-events:auto; }
+  /* ---- 星空マップ本体：完成版マップ画面（iframe）を画面全体に敷く ---- */
+  .star-map-frame{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    border:none;
+    background:#01020a;
+  }
+  /* ---- マップの戻るボタン：細身のシェブロン、淡い水色半透明で世界観を邪魔しない ---- */
+  .map-back-btn{
+    position:absolute; top:18px; left:16px; z-index:2;
+    width:40px; height:40px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(8,12,30,.35);
+    border:none;
+    color:rgba(214,238,255,.75);
+    cursor:pointer;
+    transition:transform .15s ease, background .2s ease, color .2s ease;
+  }
+  .map-back-btn svg{ display:block; }
+  .map-back-btn:active{
+    transform:scale(.85);
+    background:rgba(8,12,30,.5);
+    color:rgba(255,255,255,.92);
+  }
+
+  /* ---- 汎用モーダル（せってい／ゆうりょう案内 共通の骨格） ---- */
+  .modal-overlay{
+    position:absolute; inset:0; z-index:80;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,8,16,.58);
+    backdrop-filter:blur(3px);
+    opacity:0; pointer-events:none;
+    transition:opacity .3s ease;
+    padding:24px;
+  }
+  .modal-overlay.show{ opacity:1; pointer-events:auto; }
+  .modal-card{
+    position:relative; width:100%; max-width:320px;
+    background:linear-gradient(160deg, rgba(15,34,54,.94), rgba(5,16,28,.96));
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:22px;
+    padding:20px 18px 16px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5), 0 0 30px rgba(111,208,255,.12);
+    transform:scale(.92); transition:transform .3s cubic-bezier(.22,1,.36,1);
+    max-height:78vh; overflow-y:auto;
+  }
+  .modal-overlay.show .modal-card{ transform:scale(1); }
+  .modal-card h3{
+    margin:0 0 13px; text-align:center; font-size:16px; color:var(--ink);
+    text-shadow:0 0 10px rgba(111,208,255,.4);
+  }
+  .modal-close-btn{
+    position:absolute; top:12px; right:12px;
+    width:26px; height:26px; border-radius:50%;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.2);
+    color:var(--ink-soft); font-size:15px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .series-link{
+    display:inline-block; font-size:12.5px; color:var(--aurora-a);
+    text-decoration:underline; text-underline-offset:3px;
+  }
+
+  .paywall-message{
+    text-align:center; font-size:14px; line-height:1.75; color:var(--ink);
+    margin:6px 0 16px;
+  }
+  .modal-card--soft{ text-align:center; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.01ms !important; animation-iteration-count:1 !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sky"></div>
+<div class="nebula n1"></div>
+<div class="nebula n2"></div>
+<div class="nebula n3"></div>
+<div id="starField"></div>
+
+<div class="stage" id="stage">
+
+  <!-- ヘッダー：右端に星空マップアイコンだけを配置 -->
+  <div class="top-bar" id="topBar">
+    <div class="stage-icon-row">
+      <button class="mini-icon-btn telescope-icon" id="telescopeBtn" type="button" aria-label="星空マップを見る">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <!-- ハの字に開く三脚（3本、鏡筒の手元寄りから） -->
+            <path d="M24 31 L12 44"/>
+            <path d="M24 31 L24 45"/>
+            <path d="M24 31 L36 44"/>
+            <!-- 鏡筒一式：対物側（先端）を太く、接眼側（手元）に段差をつけて細く -->
+            <g transform="rotate(-50 24 30)">
+              <path d="M21.5 30 L26.5 30 L29 8 L19 8 Z"/>
+              <circle cx="24" cy="30" r="2.6"/>
+            </g>
+          </g>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="playArea">
+    <header>
+      <h1><span id="titleMain">1. 九九の星</span><span class="sub" id="titleSub">KUKU CONSTELLATION</span></h1>
+      <div class="progress" id="progress"></div>
+      <div class="origin-number" id="originNumber"></div>
+    </header>
+
+    <div class="slot-area" id="slotArea"></div>
+
+    <div class="main-zone">
+      <div class="main-bubble-wrap" id="mainBubbleWrap">
+        <div class="main-bubble" id="mainBubble">
+          <div class="aurora-layer"></div>
+          <div class="glass-highlight"></div>
+          <span class="main-number" id="mainNumber">--</span>
+        </div>
+        <div class="star-form" id="starForm">
+          <div class="soft-star" id="starFormInner"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="choices" id="choices"></div>
+
+    <!-- [一時的] 動作確認用テストボタン：本番リリース時にはこのブロックごと削除してよい -->
+    <div class="debug-test-area">
+      <button class="debug-test-btn" id="debugJumpToResult" type="button">[テスト] 即リザルトへ</button>
+      <button class="debug-test-btn" id="debugFullResultSequence" type="button">[テスト] リザルト通し再生</button>
+    </div>
+  </div>
+
+  <div class="result-overlay" id="resultOverlay">
+    <div class="result-header">
+      <h2><span id="resultTitleMain">あつめた星たち</span><span class="sub" id="resultTitleSub">YOUR CONSTELLATION</span></h2>
+    </div>
+    <div class="result-field" id="resultField"></div>
+    <div class="result-actions">
+      <button class="replay-btn" id="replayBtn">もういちど 星あつめにいく</button>
+      <button class="map-link-btn" id="resultMapBtn" type="button">星空をみにいく</button>
+    </div>
+    <!-- [一時的] 動作確認用テストボタン：本番リリース時にはこのブロックごと削除してよい -->
+    <div class="debug-test-area">
+      <button class="debug-test-btn" id="debugForceStage1" type="button">[テスト] STAGE 1 全達成</button>
+    </div>
+  </div>
+
+  <!-- 望遠鏡で覗く星空マップ：本編のクリア実績が反映される完成版マップ画面（iframe）。
+       画面全体を覆うフルスクリーン表示で、左上の光る星ボタンで直前の画面へ戻る。 -->
+  <div class="map-overlay" id="mapScreen">
+    <iframe class="star-map-frame" id="starMapFrame" title="星空マップ"></iframe>
+    <button class="map-back-btn" id="mapBackBtn" type="button" aria-label="もどる">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+        <path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- STAGE 1 観測完了モーダル：全問クリア時に表示する案内 -->
+  <div class="modal-overlay" id="paywallModal">
+    <div class="modal-card modal-card--soft">
+      <button class="modal-close-btn" id="paywallCloseBtn" type="button" aria-label="とじる">×</button>
+      <h3>STAGE 1 観測完了</h3>
+      <p class="paywall-message">素数と因数分解が織りなす、<br>数字のひみつを探す旅へ。<br>この先の星空は、完全版で観測できます。</p>
+      <a class="series-link" id="paywallLink" href="https://hoshiatsume.totonoeuniverse.com" target="_blank" rel="noopener">詳細をみる</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // ===========================================================
+  // セーブデータ管理（localStorage）
+  // キー名は固定。version を持たせ、将来のスキーマ変更にも
+  // migrateSaveData() で安全に追従できるようにしておく。
+  // ===========================================================
+  const SAVE_KEY = 'hoshiatsume_suji_asobi';
+  const SAVE_VERSION = 1;
+
+  // 体験版はSTAGE1（九九・9×9）単体のみ。セーブデータは単一のプレイ実績のみを持つ。
+  // stars: { "4":2, "36":1, ... } — その積（九九の答え）を何回クリアしたか。
+  // observed: STAGE1を全問クリア（=全積を規定回数クリア）して「観測完了」モーダルを
+  // 一度でも見せたかどうか（2回目以降の周回では表示しない）。
+  function defaultSaveData(){
+    return {
+      version: SAVE_VERSION,
+      stars: {},
+      observed: false
+    };
+  }
+
+  // 旧バージョンのデータや、壊れた／部分的なデータが来ても、
+  // 足りない項目をデフォルト値で穴埋めして必ず整合の取れた形に直す。
+  function migrateSaveData(raw){
+    const data = (raw && typeof raw === 'object') ? raw : {};
+    if(typeof data.version !== 'number') data.version = SAVE_VERSION;
+    if(!data.stars || typeof data.stars !== 'object') data.stars = {};
+    // 旧バージョン（複数プレイヤー・複数ステージ）のセーブデータが残っていた場合は、
+    // 引き継がず単一プレイ実績としてリセットする。
+    const isLegacyShape = ('slots' in data) || ('active_slot' in data);
+    if(isLegacyShape){
+      data.stars = {};
+      data.observed = false;
+    }
+    if(typeof data.observed !== 'boolean') data.observed = false;
+    return data;
+  }
+
+  let saveData = null;
+
+  function loadSaveData(){
+    let raw = null;
+    try{ raw = localStorage.getItem(SAVE_KEY); }catch(e){ raw = null; }
+    if(!raw){
+      saveData = defaultSaveData();
+      persistSaveData();
+      return saveData;
+    }
+    try{
+      saveData = migrateSaveData(JSON.parse(raw));
+    }catch(e){
+      saveData = defaultSaveData();
+    }
+    return saveData;
+  }
+
+  function persistSaveData(){
+    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(saveData)); }
+    catch(e){ /* 保存先が使えない環境では、静かに諦めてゲーム自体は続行させる */ }
+  }
+
+  const HUES = ['h0','h1','h2','h3'];
+  const TOTAL_ROUNDS = 5;
+  const AURORA = ['#6FD0FF','#B892F0','#FF9AD5','#FFD97A','#4FE3C1'];
+
+  const CHAMPAGNE_VARIANTS = [
+    ['#FFFBF0','#FFEBAF','#F2C773','#DDA24A'],
+    ['#FFFDF0','#FFF3C4','#F5D68A','#E0B45C'],
+    ['#FFF8E8','#FFE0A0','#E8AE55','#C9862B'],
+    ['#FFFAF2','#FFE3B8','#F0BC7E','#D99A52']
+  ];
+  const CHAMPAGNE_PARTICLES = ['#FFFBF0','#FFEBAF','#F2C773','#DDA24A','#FFF3D6'];
+
+  const JADE_VARIANTS = [
+    ['#F4FFFA','#C9F5DF','#7FDDB0','#3FAE7E'],
+    ['#F2FFF9','#BFF2DA','#71D2A6','#359F71'],
+    ['#F6FFFB','#D2F7E6','#8FE2BE','#4BB98B'],
+    ['#F0FFF8','#B8F0D6','#63C99C','#2E9A6E']
+  ];
+  const JADE_PARTICLES = ['#EAFFF6','#B8F0D6','#7FDDB0','#3FAE7E','#D2F7E6'];
+
+  const DIAMOND_PARTICLES = ['#FFFFFF','#FDE3F0','#E3D8FA','#D6E8FF','#FFF0D9'];
+
+  // ---------------------------------------------------------
+  // 星の色の判定ロジック（九九＝gold ／ それ以外＝jade。体験版の出題プールは
+  // 必ず九九の積なので、実質すべてgoldになる）
+  // ---------------------------------------------------------
+  function isPrimeNum(v){
+    if(v < 2) return false;
+    for(let d=2; d*d<=v; d++){ if(v % d === 0) return false; }
+    return true;
+  }
+  // 日本語モード固定：時九九の上限は常に9。
+  function currentTimesTableMax(){
+    return 9;
+  }
+  function isKukuNum(v){
+    const maxFactor = currentTimesTableMax();
+    for(let a=1; a<=maxFactor; a++){
+      if(v % a === 0 && (v / a) <= maxFactor) return true;
+    }
+    return false;
+  }
+  function categoryOf(v){
+    if(isPrimeNum(v)) return 'diamond';
+    if(isKukuNum(v)) return 'gold';
+    return 'jade';
+  }
+
+  function generateStarPoints(cx, cy, outerR, innerR, bumps, outerJitter){
+    const pts = [];
+    const total = bumps*2;
+    for(let i=0;i<total;i++){
+      const angle = -Math.PI/2 + i*Math.PI/bumps;
+      let r = i%2===0 ? outerR : innerR;
+      if(outerJitter && i%2===0){
+        r *= outerJitter[(i/2)|0] || 1;
+      }
+      pts.push({ x: cx + r*Math.cos(angle), y: cy + r*Math.sin(angle) });
+    }
+    return pts;
+  }
+  function catmullRomPath(pts){
+    const n = pts.length;
+    let d = 'M' + pts[0].x.toFixed(2) + ',' + pts[0].y.toFixed(2) + ' ';
+    for(let i=0;i<n;i++){
+      const p0 = pts[(i-1+n)%n];
+      const p1 = pts[i];
+      const p2 = pts[(i+1)%n];
+      const p3 = pts[(i+2)%n];
+      const cp1x = p1.x + (p2.x - p0.x)/6;
+      const cp1y = p1.y + (p2.y - p0.y)/6;
+      const cp2x = p2.x - (p3.x - p1.x)/6;
+      const cp2y = p2.y - (p3.y - p1.y)/6;
+      d += 'C' + cp1x.toFixed(2) + ',' + cp1y.toFixed(2) + ' ' + cp2x.toFixed(2) + ',' + cp2y.toFixed(2) + ' ' + p2.x.toFixed(2) + ',' + p2.y.toFixed(2) + ' ';
+    }
+    d += 'Z';
+    return d;
+  }
+  const PUFFY_STAR_PATH = catmullRomPath(generateStarPoints(100, 100, 86, 62, 5));
+
+  let svgUid = 0;
+  function buildStarSvg(colors){
+    svgUid++;
+    const id = 'starGrad' + svgUid;
+    return '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs><radialGradient id="' + id + '" cx="38%" cy="32%" r="78%">' +
+      '<stop offset="0%" stop-color="' + colors[0] + '"/>' +
+      '<stop offset="40%" stop-color="' + colors[1] + '"/>' +
+      '<stop offset="72%" stop-color="' + colors[2] + '"/>' +
+      '<stop offset="100%" stop-color="' + colors[3] + '"/>' +
+      '</radialGradient></defs>' +
+      '<path fill="url(#' + id + ')" d="' + PUFFY_STAR_PATH + '"/>' +
+      '</svg>';
+  }
+
+
+  // ---------------------------------------------------------
+  // 「工房スレッド」製：素数（ダイヤモンド）専用の11面カット静止クリスタル。
+  // 直立（rotate:0）で統一。数字はSVG内部に埋め込まず、他の星（翡翠・ゴールド）と同じく
+  // 外側の共通オーバーレイ（.num / .num-label）に統一して重ねる。
+  // ゲーム内で「素数（ダイヤモンド）」として生成される星パーツ全てがこの関数を共通利用する。
+  // ---------------------------------------------------------
+  function buildPrimeDiamondSvg(){
+    svgUid++;
+    const u = svgUid;
+    return '' +
+      '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">' +
+        '<defs>' +
+          '<linearGradient id="fWhite' + u + '" x1="20%" y1="0%" x2="80%" y2="100%">' +
+            '<stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#eef8ff"/>' +
+          '</linearGradient>' +
+          '<linearGradient id="fPale' + u + '" x1="15%" y1="0%" x2="85%" y2="100%">' +
+            '<stop offset="0%" stop-color="#e9f6ff"/><stop offset="100%" stop-color="#c3e4fa"/>' +
+          '</linearGradient>' +
+          '<linearGradient id="fCyan' + u + '" x1="10%" y1="0%" x2="90%" y2="100%">' +
+            '<stop offset="0%" stop-color="#c9e9fb"/><stop offset="100%" stop-color="#7fc3ec"/>' +
+          '</linearGradient>' +
+          '<linearGradient id="fPrismA' + u + '" x1="0%" y1="0%" x2="100%" y2="100%">' +
+            '<stop offset="0%" stop-color="#ffffff"/><stop offset="9%" stop-color="#fff2a8"/>' +
+            '<stop offset="40%" stop-color="#ffa8d6"/><stop offset="72%" stop-color="#c9aef2"/>' +
+            '<stop offset="100%" stop-color="#8fd8f7"/>' +
+          '</linearGradient>' +
+          '<linearGradient id="fPrismB' + u + '" x1="100%" y1="0%" x2="0%" y2="100%">' +
+            '<stop offset="0%" stop-color="#ffffff"/><stop offset="9%" stop-color="#8fd8f7"/>' +
+            '<stop offset="40%" stop-color="#c9aef2"/><stop offset="72%" stop-color="#ffa8d6"/>' +
+            '<stop offset="100%" stop-color="#fff2a8"/>' +
+          '</linearGradient>' +
+          '<linearGradient id="fPrismC' + u + '" x1="0%" y1="100%" x2="100%" y2="0%">' +
+            '<stop offset="0%" stop-color="#ffffff"/><stop offset="9%" stop-color="#ffa8d6"/>' +
+            '<stop offset="45%" stop-color="#8fd8f7"/><stop offset="78%" stop-color="#c9aef2"/>' +
+            '<stop offset="100%" stop-color="#fff2a8"/>' +
+          '</linearGradient>' +
+          '<linearGradient id="fTable' + u + '" x1="25%" y1="10%" x2="75%" y2="95%">' +
+            '<stop offset="0%" stop-color="#ffffff" stop-opacity=".9"/>' +
+            '<stop offset="45%" stop-color="#eaf6ff" stop-opacity=".68"/>' +
+            '<stop offset="100%" stop-color="#cfe9fb" stop-opacity=".5"/>' +
+          '</linearGradient>' +
+        '</defs>' +
+        '<g transform="rotate(0 100 100)">' +
+          '<g>' +
+            '<polygon points="100.00,14.00 136.44,49.84 120.04,72.41 100.00,52.70" fill="url(#fWhite' + u + ')"/>' +
+            '<polygon points="136.44,49.84 181.79,73.42 144.98,85.38 120.04,72.41" fill="url(#fPrismA' + u + ')"/>' +
+            '<polygon points="181.79,73.42 158.97,119.16 132.43,110.54 144.98,85.38" fill="url(#fCyan' + u + ')"/>' +
+            '<polygon points="158.97,119.16 150.55,169.58 127.80,138.27 132.43,110.54" fill="url(#fPale' + u + ')"/>' +
+            '<polygon points="150.55,169.58 100.00,162.00 100.00,134.10 127.80,138.27" fill="url(#fPrismB' + u + ')"/>' +
+            '<polygon points="100.00,162.00 49.45,169.58 72.20,138.27 100.00,134.10" fill="url(#fCyan' + u + ')"/>' +
+            '<polygon points="49.45,169.58 41.03,119.16 67.57,110.54 72.20,138.27" fill="url(#fPale' + u + ')"/>' +
+            '<polygon points="41.03,119.16 18.21,73.42 55.02,85.38 67.57,110.54" fill="url(#fPrismC' + u + ')"/>' +
+            '<polygon points="18.21,73.42 63.56,49.84 79.96,72.41 55.02,85.38" fill="url(#fPale' + u + ')"/>' +
+            '<polygon points="63.56,49.84 100.00,14.00 100.00,52.70 79.96,72.41" fill="url(#fWhite' + u + ')"/>' +
+          '</g>' +
+          '<polygon points="100.0,52.7 120.04,72.41 144.98,85.38 132.43,110.54 127.8,138.27 100.0,134.1 72.2,138.27 67.57,110.54 55.02,85.38 79.96,72.41" fill="url(#fTable' + u + ')"/>' +
+        '</g>' +
+      '</svg>';
+  }
+
+  // isDiamond=素数（ダイヤモンド）／isJade=合成数（翡翠）／どちらも false=九九の星（ゴールド）
+  // 数字は常にこの関数の呼び出し側が別レイヤーのオーバーレイとして重ねる（SVG内部には持たない）
+  function renderSoftStar(container, isJade, isDiamond){
+    if(!container) return;
+    container.classList.toggle('diamond', !!isDiamond);
+    if(isDiamond){
+      container.innerHTML = buildPrimeDiamondSvg();
+      return;
+    }
+    const list = isJade ? JADE_VARIANTS : CHAMPAGNE_VARIANTS;
+    container.innerHTML = buildStarSvg(list[Math.floor(Math.random()*list.length)]);
+  }
+
+  const stage = document.getElementById('stage');
+  const starField = document.getElementById('starField');
+  const playArea = document.getElementById('playArea');
+  const titleMain = document.getElementById('titleMain');
+  const titleSub = document.getElementById('titleSub');
+  const resultTitleMain = document.getElementById('resultTitleMain');
+  const resultTitleSub = document.getElementById('resultTitleSub');
+  const originNumber = document.getElementById('originNumber');
+  const progressEl = document.getElementById('progress');
+  const slotArea = document.getElementById('slotArea');
+  const mainBubbleWrap = document.getElementById('mainBubbleWrap');
+  const mainBubble = document.getElementById('mainBubble');
+  const mainNumber = document.getElementById('mainNumber');
+  const starForm = document.getElementById('starForm');
+  const starFormInner = document.getElementById('starFormInner');
+  const choicesEl = document.getElementById('choices');
+  const resultOverlay = document.getElementById('resultOverlay');
+  const debugForceStage1Btn = document.getElementById('debugForceStage1');
+  const debugJumpToResultBtn = document.getElementById('debugJumpToResult');
+  const debugFullResultSequenceBtn = document.getElementById('debugFullResultSequence');
+  const resultField = document.getElementById('resultField');
+  const replayBtn = document.getElementById('replayBtn');
+
+  // ---- 追加UI（Map／クリア案内）のDOM参照 ----
+  const telescopeBtn = document.getElementById('telescopeBtn');
+  const resultMapBtn = document.getElementById('resultMapBtn');
+  const mapScreen = document.getElementById('mapScreen');
+  const starMapFrame = document.getElementById('starMapFrame');
+  const mapBackBtn = document.getElementById('mapBackBtn');
+  const paywallModal = document.getElementById('paywallModal');
+  const paywallCloseBtn = document.getElementById('paywallCloseBtn');
+
+  // 体験版はSTAGE1（九九）単体のみ。
+  const stageId = 1;
+
+  // STAGE1を全問クリアした瞬間にtrueにしておくと、次のリザルト画面で一度だけ
+  // クリアアンサンブル＋「STAGE 1 観測完了」モーダルが表示される（2回目以降は出さない）。
+  let pendingStageClearAnnounce = false;
+
+  let round = 0;
+  let currentValue = 0;
+  let currentDivisors = [];
+  let currentIsJade = false;
+  let currentIsHard = false;
+  let foundDivisors = [];
+  let outsideQueue = [];
+  let boardNumbers = [2,3,4,5,6,7,8,9];
+  let boardCollected = [false,false,false,false,false,false,false,false];
+  let sessionStars = [];
+  let roundQueue = [];
+  let busy = false;
+
+  // ステージ4専用の状態
+
+  // ---------------------------------------------------------
+  // STAGE1（九九・9×9）専用の出題設定。日本語モード固定・体験版はこの1ステージのみ。
+  // ---------------------------------------------------------
+  const STAGE1_TIMES_TABLE_MAX = 9;
+  const STAGE1_CLEAR_TARGET = 3; // 各積を規定回数クリアすると「全問クリア」＝観測完了
+
+  // v の「時九九」除数（2〜maxFactor）を、商も2〜maxFactorに収まるものだけ小さい順に返す
+  function getTimesTablePartners(v, maxFactor){
+    const arr = [];
+    for(let d=2; d<=maxFactor; d++){
+      if(v % d === 0){
+        const q = v / d;
+        if(q >= 2 && q <= maxFactor) arr.push(d);
+      }
+    }
+    return arr;
+  }
+
+  // 時九九（2〜maxFactor同士の積）で作れる数値だけを、重複なく昇順で集める
+  function buildTimesTablePool(maxFactor){
+    const set = new Set();
+    for(let a=2; a<=maxFactor; a++){
+      for(let b=a; b<=maxFactor; b++){
+        set.add(a*b);
+      }
+    }
+    return Array.from(set).sort((x,y)=>x-y);
+  }
+
+  const STAGE_CONF = {
+    1: {
+      title: '1. 九九の星', sub: 'KUKU CONSTELLATION',
+      pool: buildTimesTablePool(STAGE1_TIMES_TABLE_MAX),
+      getDivisors: (v) => getTimesTablePartners(v, STAGE1_TIMES_TABLE_MAX),
+      requiredCats: [],
+      clearTarget: STAGE1_CLEAR_TARGET
+    }
+  };
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1; i>0; i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // 1プレイ（5問）ぶんの出題数値を、必須カテゴリを最低1問ずつ含めつつ重複なしで確定させる（ステージ1〜3）
+  // 1セット(5問)の中で偶数（2の倍数）ばかりに偏らないようにする、緩やかな上限。
+  // 偶数はすべて最小の素因数が2になるため、上限を超えて選ばれている場合は
+  // 超過分だけプール内の未使用の奇数と入れ替える（奇数の候補が無ければそのまま）。
+  function limitEvenNumbers(chosen, pool, maxEven){
+    const isEven = v => v % 2 === 0;
+    let evenCount = chosen.filter(isEven).length;
+    if(evenCount <= maxEven) return chosen;
+
+    const usedSet = new Set(chosen);
+    const oddCandidates = shuffle(pool.filter(v => !isEven(v) && !usedSet.has(v)));
+
+    for(let i = 0; i < chosen.length && evenCount > maxEven && oddCandidates.length; i++){
+      if(isEven(chosen[i])){
+        const replacement = oddCandidates.pop();
+        usedSet.delete(chosen[i]);
+        usedSet.add(replacement);
+        chosen[i] = replacement;
+        evenCount--;
+      }
+    }
+    return chosen;
+  }
+
+  // セーブデータの stars（クリア回数）を参照し、まだ規定回数
+  // （STAGE_CONF[1].clearTarget）に達していない数値を優先しつつ1プレイぶん(5問)を
+  // 組み立てる。全問規定回数以上クリア済みなら、復習として全体からランダムに選ぶ
+  // （マスター後の周回プレイに対応）。
+  function buildStageQueue(id){
+    const stars = saveData.stars || {};
+    const conf = STAGE_CONF[id];
+    const pool = conf.pool;
+    const requiredCats = conf.requiredCats || [];
+    const target = conf.clearTarget;
+    const clearCountOf = v => stars[String(v)] || 0;
+    const isUnderTarget = v => clearCountOf(v) < target;
+
+    const byCategory = { gold:[], jade:[], diamond:[] };
+    pool.forEach(v => { byCategory[categoryOf(v)].push(v); });
+
+    const usedSet = new Set();
+    const chosen = [];
+
+    // 1) 必須カテゴリを、未達成（規定回数未満）を優先しつつ最低1問ずつ確保する
+    shuffle(requiredCats).forEach(cat => {
+      const all = byCategory[cat].filter(v => !usedSet.has(v));
+      const preferred = shuffle(all.filter(isUnderTarget));
+      const candidates = preferred.length ? preferred : shuffle(all);
+      if(candidates.length){
+        const v = candidates[0];
+        chosen.push(v);
+        usedSet.add(v);
+      }
+    });
+
+    // 2) 残り枠は、規定回数未満の数値を優先して埋める
+    const underTarget = shuffle(pool.filter(v => !usedSet.has(v) && isUnderTarget(v)));
+    underTarget.forEach(v => {
+      if(chosen.length < TOTAL_ROUNDS && !usedSet.has(v)){
+        chosen.push(v);
+        usedSet.add(v);
+      }
+    });
+
+    // 3) それでも足りなければ、規定回数達成済みの数値から復習として埋める
+    if(chosen.length < TOTAL_ROUNDS){
+      shuffle(pool.filter(v => !usedSet.has(v))).forEach(v => {
+        if(chosen.length < TOTAL_ROUNDS){
+          chosen.push(v);
+          usedSet.add(v);
+        }
+      });
+    }
+
+    // 偶数（times-tableの合成数）に偏りやすく、5問の基音がすべて「2」になりがちなため、
+    // 緩やかな上限で奇数を混ぜる。
+    const result = limitEvenNumbers(chosen, pool, 3);
+
+    return shuffle(result);
+  }
+
+  // 1問クリアするたびに呼ぶ：クリア回数を+1して即保存する（星空マップの点灯判定にも使う）。
+  function incrementStarClearCount(value){
+    if(!saveData.stars || typeof saveData.stars !== 'object') saveData.stars = {};
+    const key = String(value);
+    saveData.stars[key] = (saveData.stars[key] || 0) + 1;
+    persistSaveData();
+  }
+
+  // STAGE1の全積が規定回数（STAGE_CONF[1].clearTarget）以上クリアされたら
+  // 「全問クリア」＝観測完了。初回のみ観測演出（クリアモーダル）を出す。
+  function recordStageClear(value){
+    incrementStarClearCount(value);
+    const conf = STAGE_CONF[1];
+    const target = conf.clearTarget;
+    const stars = saveData.stars || {};
+    const mastered = conf.pool.every(v => (stars[String(v)] || 0) >= target);
+
+    if(mastered && !saveData.observed){
+      saveData.observed = true;
+      persistSaveData();
+      pendingStageClearAnnounce = true;
+    }
+    syncStarMap();
+  }
+
+  // 選択肢ボタン・結晶のaria-label文言（日本語固定）
+  function choiceAria(n){ return n + 'の星のかけら'; }
+
+  function updateHeaderTitle(){
+    const conf = STAGE_CONF[stageId];
+    titleMain.textContent = conf.title;
+    titleSub.textContent = conf.sub;
+  }
+
+  // 静的なaria-label（アイコンボタンなど）を一度だけ反映する。
+  function applyStaticAriaLabels(){
+    telescopeBtn.setAttribute('aria-label', '星空マップを見る');
+    paywallCloseBtn.setAttribute('aria-label', 'とじる');
+    mapBackBtn.setAttribute('aria-label', 'もどる');
+    starMapFrame.setAttribute('title', '星空マップ');
+  }
+
+  function renderProgress(){
+    progressEl.innerHTML = '';
+    for(let i=0;i<TOTAL_ROUNDS;i++){
+      const s = document.createElement('span');
+      s.className = 'star-pip' + (i < round-1 ? ' done' : '') + (i === round-1 ? ' current' : '');
+      s.textContent = '★';
+      progressEl.appendChild(s);
+    }
+  }
+
+  // 因数の数だけ点線のヒント枠を並べる
+  function renderSlots(){
+    slotArea.innerHTML = '';
+    currentDivisors.forEach(() => {
+      const s = document.createElement('div');
+      s.className = 'slot';
+      s.appendChild(document.createElement('span')).className = 'num-label';
+      slotArea.appendChild(s);
+    });
+  }
+
+  // 実際に描画された「丸のコンテナ」の幅から文字サイズを決める。
+  // 文字自身の要素で測ると内容が空／小さいうちは幅がほぼ0になり、
+  // 極端に縮小されてしまうため、必ず丸コンテナ側の実測幅を使う。
+  function fitTextLayer(circleEl, labelEl, text, ratioFn){
+    labelEl.textContent = text;
+    const digits = String(text).length;
+    const ratio = ratioFn(digits);
+    const size = circleEl.getBoundingClientRect().width || circleEl.offsetWidth || 40;
+    labelEl.style.fontSize = Math.max(11, Math.round(size * ratio)) + 'px';
+  }
+
+  function fillSlot(n){
+    const slots = slotArea.querySelectorAll('.slot');
+    const idx = foundDivisors.length - 1;
+    if(slots[idx]){
+      slots[idx].classList.add('filled');
+      const label = slots[idx].querySelector('.num-label');
+      fitTextLayer(slots[idx], label, n, d => d<=1?0.5 : d===2?0.42 : d===3?0.32 : 0.26);
+    }
+  }
+
+  function renderChoices(){
+    choicesEl.innerHTML = '';
+    for(let i=0;i<boardNumbers.length;i++){
+      const n = boardNumbers[i];
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn ' + HUES[i%4];
+
+      const fill = document.createElement('div');
+      fill.className = 'bubble-fill';
+      const label = document.createElement('span');
+      label.className = 'num-label';
+
+      btn.appendChild(fill);
+      btn.appendChild(label);
+      btn.dataset.idx = i;
+      btn.setAttribute('aria-label', choiceAria(n));
+      btn.addEventListener('click', () => handleChoice(i, btn));
+      choicesEl.appendChild(btn);
+
+      // お題の数字より一回り小さく、細身で繊細な視認性バランス
+      fitTextLayer(btn, label, n, d => d<=1?0.4 : d===2?0.32 : d===3?0.26 : 0.22);
+    }
+  }
+
+  function burstParticles(x, y, count, palette){
+    const colors = palette || AURORA;
+    for(let i=0;i<count;i++){
+      const p = document.createElement('div');
+      p.className = 'particle';
+      document.body.appendChild(p);
+      p.style.left = x + 'px';
+      p.style.top = y + 'px';
+      const angle = Math.random()*Math.PI*2;
+      const dist = 40 + Math.random()*100;
+      const dx = Math.cos(angle)*dist;
+      const dy = Math.sin(angle)*dist;
+      const color = colors[i % colors.length];
+      p.style.background = `radial-gradient(circle at 35% 30%, #fff, ${color})`;
+      p.style.boxShadow = `0 0 8px ${color}`;
+      p.animate([
+        { transform:'translate(0,0) scale(1)', opacity:1 },
+        { transform:`translate(${dx}px, ${dy}px) scale(.2)`, opacity:0 }
+      ], { duration: 700, easing:'cubic-bezier(.2,.8,.3,1)' }).onfinish = () => p.remove();
+    }
+  }
+
+  // ---- 「カチン／キラリ」と澄んだ光条フラッシュ（かたい星＝素数専用、ステージ4の正解時にも使用） ----
+  function hardSparkleFlash(x, y){
+    const el = document.createElement('div');
+    el.style.position = 'fixed';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.width = '10px';
+    el.style.height = '10px';
+    el.style.marginLeft = '-5px';
+    el.style.marginTop = '-5px';
+    el.style.borderRadius = '50%';
+    el.style.background = 'repeating-conic-gradient(from 0deg, rgba(255,255,255,.95) 0deg 4deg, transparent 4deg 18deg)';
+    el.style.zIndex = '35';
+    el.style.pointerEvents = 'none';
+    el.style.mixBlendMode = 'screen';
+    document.body.appendChild(el);
+    el.animate([
+      { transform:'scale(0)', opacity:1 },
+      { transform:'scale(14)', opacity:0 }
+    ], { duration:480, easing:'cubic-bezier(.15,.8,.3,1)' }).onfinish = () => el.remove();
+  }
+
+  function flyIntoBubble(sourceEl, n, onAbsorbed){
+    const srcRect = sourceEl.getBoundingClientRect();
+    const bubbleRect = mainBubble.getBoundingClientRect();
+    const size = 30;
+
+    const startX = srcRect.left + srcRect.width/2 - size/2;
+    const startY = srcRect.top + srcRect.height/2 - size/2;
+    const endX = bubbleRect.left + bubbleRect.width/2 - size/2;
+    const endY = bubbleRect.top + bubbleRect.height/2 - size/2;
+    const dx = endX - startX;
+    const dy = endY - startY;
+
+    const clone = document.createElement('div');
+    clone.style.position = 'fixed';
+    clone.style.left = startX + 'px';
+    clone.style.top = startY + 'px';
+    clone.style.width = size + 'px';
+    clone.style.height = size + 'px';
+    clone.style.borderRadius = '50%';
+    clone.style.display = 'flex';
+    clone.style.alignItems = 'center';
+    clone.style.justifyContent = 'center';
+    clone.style.fontWeight = '700';
+    clone.style.fontSize = '12px';
+    clone.style.color = '#EAF3FF';
+    clone.style.background = 'rgba(255,255,255,.14)';
+    clone.style.border = '1.5px solid rgba(255,255,255,.6)';
+    clone.style.boxShadow = '0 0 14px rgba(111,208,255,.7)';
+    clone.style.zIndex = '60';
+    clone.style.pointerEvents = 'none';
+    clone.textContent = n;
+    document.body.appendChild(clone);
+
+    const anim = clone.animate([
+      { transform:'translate(0,0) scale(1)', opacity:1 },
+      { transform:`translate(${dx*0.5}px, ${dy*0.5}px) scale(.55)`, opacity:.85, offset:.5 },
+      { transform:`translate(${dx}px, ${dy}px) scale(.05)`, opacity:0 }
+    ], { duration:380, easing:'cubic-bezier(.5,0,.95,.4)' });
+
+    anim.onfinish = () => {
+      clone.remove();
+      if(onAbsorbed) onAbsorbed();
+    };
+  }
+
+  // 中央の親泡の一時的な反応クラスは、必ず一定時間後に自分で除去する。
+  function triggerBubbleAnim(className, duration){
+    mainBubble.classList.remove('jelly-shake', 'pulse-correct', 'poyon-bounce', 'kachin-flash');
+    void mainBubble.offsetWidth;
+    mainBubble.classList.add(className);
+    setTimeout(() => mainBubble.classList.remove(className), duration);
+  }
+
+  /* =========================================================
+     サウンド実装（Web Audio API）
+     ・生活空間への配慮：横で大人が読書や仕事をしていても耳障りに
+       ならない、角のない極めて静かでまろやかな音（サイン波基調、
+       柔らかいアタック、控えめな音量）に統一する。
+     ・音源の統一：新規の電子音や固定音（「ラ」1音だけ等）は使わず、
+       星空マップで星をタップしたときの生成ロジック（素数のペンタ
+       トニック音階・playTone・完成和音・太陽の音）をそのまま
+       ここにも実装し、すべての演出音をそこから組み立てる。
+  ========================================================= */
+  let gameAudioCtx = null, gameMasterGain = null, gameReverbNode = null;
+
+  function ensureGameAudioContext(){
+    if(!gameAudioCtx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return null;
+      gameAudioCtx = new AC();
+      gameMasterGain = gameAudioCtx.createGain();
+      gameMasterGain.gain.value = 0.5; // 連打しても爆音にならないよう控えめに
+
+      const limiter = gameAudioCtx.createDynamicsCompressor();
+      limiter.threshold.value = -22;
+      limiter.knee.value = 26;
+      limiter.ratio.value = 6;
+      limiter.attack.value = 0.004;
+      limiter.release.value = 0.3;
+      gameMasterGain.connect(limiter);
+      limiter.connect(gameAudioCtx.destination);
+
+      gameReverbNode = gameAudioCtx.createConvolver();
+      gameReverbNode.buffer = buildGameReverbImpulse(gameAudioCtx, 2.0, 3.0);
+      const reverbOut = gameAudioCtx.createGain();
+      reverbOut.gain.value = 0.3;
+      gameReverbNode.connect(reverbOut);
+      reverbOut.connect(gameMasterGain);
+    }
+    if(gameAudioCtx.state === 'suspended'){ gameAudioCtx.resume(); }
+    return gameAudioCtx;
+  }
+
+  function buildGameReverbImpulse(ctx, duration, decay){
+    const rate = ctx.sampleRate;
+    const length = Math.max(1, Math.floor(rate * duration));
+    const impulse = ctx.createBuffer(2, length, rate);
+    for(let ch=0; ch<2; ch++){
+      const data = impulse.getChannelData(ch);
+      for(let i=0; i<length; i++){
+        data[i] = (Math.random()*2 - 1) * Math.pow(1 - i/length, decay);
+      }
+    }
+    return impulse;
+  }
+
+  // ---- ここから、星空マップの星タップ音と全く同じ生成ロジック ----
+  // すべての演出音の統一ゲイン：特定の音だけ突出したり小さすぎたりしないよう、
+  // 耳に優しい控えめな一定値に揃える。
+  const GENTLE_GAIN = 0.18;
+
+  // 素数 → 音階（低音から高音へ、ペンタトニックスケール）。星空マップと同一。
+  const PENTATONIC_SEMITONES = [0, 2, 4, 7, 9]; // C, D, E, G, A
+  const PITCH_OCTAVE_CEILING_TIER = 3;
+  function primeIndexOf(p){
+    let idx = -1;
+    for(let v=2; v<=p; v++){ if(isPrimeNum(v)){ idx++; } }
+    return idx;
+  }
+  function midiToFreq(midi){ return 440 * Math.pow(2, (midi - 69) / 12); }
+  function primeFreq(p){
+    const idx = primeIndexOf(p);
+    const degree = idx % 5;
+    const tier = Math.min(Math.floor(idx / 5), PITCH_OCTAVE_CEILING_TIER);
+    const octave = 4 + tier;
+    const semitone = PENTATONIC_SEMITONES[degree];
+    const midi = (octave + 1) * 12 + semitone;
+    return midiToFreq(midi);
+  }
+  // v を素因数分解し、重複のない昇順の素因数配列を返す（星空マップと同一）
+  function primeFactorsUniqueGame(v){
+    const factors = [];
+    let x = v;
+    for(let d=2; d*d<=x; d++){
+      if(x % d === 0){
+        factors.push(d);
+        while(x % d === 0){ x = x / d; }
+      }
+    }
+    if(x > 1) factors.push(x);
+    return factors;
+  }
+
+  // 星空マップの playTone と全く同じ生成ロジック（サイン波の基音＋控えめな
+  // 上下の倍音）。ここから鳴らすすべての音の共通エンジンとして使う。
+  function playTone(ctx, freq, opts){
+    opts = opts || {};
+    const now = ctx.currentTime;
+    const duration = opts.duration || 0.8;
+    const peak = opts.gain !== undefined ? opts.gain : GENTLE_GAIN;
+    const attack = opts.attack || 0.02;
+
+    const noteGain = ctx.createGain();
+    noteGain.gain.setValueAtTime(0.0001, now);
+    noteGain.gain.linearRampToValueAtTime(peak, now + attack);
+    noteGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    const toneFilter = ctx.createBiquadFilter();
+    toneFilter.type = 'lowpass';
+    toneFilter.Q.value = 0.4;
+    toneFilter.frequency.setValueAtTime(freq * 4.5, now);
+    toneFilter.frequency.exponentialRampToValueAtTime(Math.max(freq * 1.6, 400), now + 0.22);
+
+    const dryGain = ctx.createGain(); dryGain.gain.value = opts.dry !== undefined ? opts.dry : 0.7;
+    const wetGain = ctx.createGain(); wetGain.gain.value = opts.wet !== undefined ? opts.wet : 0.5;
+    toneFilter.connect(dryGain); dryGain.connect(gameMasterGain);
+    toneFilter.connect(wetGain); wetGain.connect(gameReverbNode);
+
+    const osc1 = ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(freq, now);
+    osc1.connect(noteGain); noteGain.connect(toneFilter);
+    const stop1 = now + duration + 0.05;
+    osc1.start(now); osc1.stop(stop1);
+
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(freq * 2, now);
+    const shimmerGain = ctx.createGain();
+    shimmerGain.gain.setValueAtTime(0.0001, now);
+    shimmerGain.gain.linearRampToValueAtTime(peak * 0.14, now + attack);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.7);
+    osc2.connect(shimmerGain); shimmerGain.connect(toneFilter);
+    const stop2 = now + duration * 0.7 + 0.05;
+    osc2.start(now); osc2.stop(stop2);
+
+    let osc4 = null, subGain = null;
+    if(opts.warm){
+      // 太陽専用：1オクターブ下のサブ層であたたかさを加える
+      osc4 = ctx.createOscillator();
+      osc4.type = 'sine';
+      osc4.frequency.setValueAtTime(freq / 2, now);
+      subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0.0001, now);
+      subGain.gain.linearRampToValueAtTime(peak * 0.55, now + attack * 3);
+      subGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      osc4.connect(subGain); subGain.connect(toneFilter);
+      osc4.start(now); osc4.stop(stop1);
+    }
+
+    osc1.onended = ()=>{ try{ osc1.disconnect(); noteGain.disconnect(); toneFilter.disconnect(); dryGain.disconnect(); wetGain.disconnect(); }catch(err){} };
+    osc2.onended = ()=>{ try{ osc2.disconnect(); shimmerGain.disconnect(); }catch(err){} };
+    if(osc4){ osc4.onended = ()=>{ try{ osc4.disconnect(); subGain.disconnect(); }catch(err){} }; }
+  }
+
+  // 合成数の星：完了時の「シャラ〜ン」という柔らかな和音（星空マップと同一）
+  function playCompletionChord(ctx, factors){
+    if(!factors || factors.length === 0) return;
+    // 複数音を同時に鳴らすと単純に音量が足し合わされて突出してしまうため、
+    // 音の数に応じて1音あたりのゲインを下げ、合計の音量が単音と同じ優しい
+    // レベルに収まるようにする。金属的に聴こえる「1オクターブ+5度上」の
+    // 重ねは廃止し、アルペジオ本体と同じ音程だけを重ねる。
+    const perNoteGain = GENTLE_GAIN / Math.sqrt(factors.length);
+    factors.forEach((f)=>{
+      playTone(ctx, primeFreq(f), { duration: 1.1, gain: perNoteGain, attack: 0.015 });
+    });
+  }
+
+  // 太陽「1」：あたたかく深い「フォ〜〜ン…」（A3＝星空マップの太陽と全く同じ音）
+  function playSunTone(ctx){
+    const freq = midiToFreq(57); // A3
+    playTone(ctx, freq, { duration: 3.2, gain: GENTLE_GAIN, attack: 0.02, warm: true });
+  }
+
+  // タップした数（素数ならその数自身、合成数なら最小の素因数）の音高を採用。
+  // 「全部ラ」の単調さを避けつつ、必ず同じ聞こえやすい帯域に折りたたむことで、
+  // 数値によって聞こえたり聞こえなかったりしないようにする。
+  function clampToAudibleBand(freq, lo, hi){
+    let f = freq;
+    while(f > hi){ f /= 2; }
+    while(f < lo){ f *= 2; }
+    return f;
+  }
+  // 泡タップ音専用：250〜350Hzという狭い帯域に折りたたむことで、木琴やしずくのような
+  // 落ち着いた低めの音域に統一する（星空マップの広い音域とはあえて分ける）。
+  function gentleTapFreq(n){
+    const factors = primeFactorsUniqueGame(n);
+    const p = factors.length ? factors[0] : n;
+    return clampToAudibleBand(primeFreq(p), 250, 350);
+  }
+
+  // 1) 不正解：「間違えた」を鳴らすのではなく、「触れたけれど静かにすり抜けた」
+  //    という、耳に残らない上質な音にする。ピッチの急降下や濁った低音パルスは
+  //    使わない。水面に指先が触れて波紋が広がるような、落ち着いた低めの澄んだ
+  //    音域で、極めて短く密やかな2音の揺らぎ（「ポロロン…」と小さく消える）。
+  //    音量は正解音の半分程度に抑え、耳元でそっと「ちがうよ」と声をかけられた
+  //    ような、親しみと落ち着きのある響きにする。
+  function playRippleWrongSound(baseFreq, peakGain){
+    const ctx = ensureGameAudioContext();
+    if(!ctx) return;
+    const now = ctx.currentTime;
+    [0, 0.1].forEach((delay, i)=>{
+      const start = now + delay;
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(baseFreq, start); // ピッチは沈ませず、固定のまま
+      const gain = ctx.createGain();
+      const g = peakGain * (i === 0 ? 1 : 0.55);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(g, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
+      const wet = ctx.createGain(); wet.gain.value = 0.42; // 夜空にすっと溶けるよう、残響はやや多め
+      osc.connect(gain); gain.connect(gameMasterGain);
+      gain.connect(wet); wet.connect(gameReverbNode);
+      osc.start(start); osc.stop(start + 0.26);
+      osc.onended = ()=>{ try{ osc.disconnect(); gain.disconnect(); wet.disconnect(); }catch(err){} };
+    });
+  }
+  function playBubbleWrongSound(){ playRippleWrongSound(380, GENTLE_GAIN * 0.45); }
+
+  // 2) タップ音（下の泡を選んだ瞬間）：星空マップの「星の音」は使わず、
+  //    250〜350Hz前後の固定ピッチ（スライドさせない）による、木琴やしずくの
+  //    ような素朴なサイン波単音「トスン／コロン」にする。
+  function playBubbleCorrectSound(n){
+    const ctx = ensureGameAudioContext();
+    if(!ctx) return;
+    const freq = gentleTapFreq(n);
+    const now = ctx.currentTime;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(GENTLE_GAIN * 0.9, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now); // ピッチスライドはせず、固定のまま鳴らす
+
+    const wet = ctx.createGain(); wet.gain.value = 0.25;
+    osc.connect(gain); gain.connect(gameMasterGain);
+    gain.connect(wet); wet.connect(gameReverbNode);
+
+    osc.start(now); osc.stop(now + 0.55);
+    osc.onended = ()=>{ try{ osc.disconnect(); gain.disconnect(); wet.disconnect(); }catch(err){} };
+  }
+  // 3) 問クリア（星が生まれ、天へ昇るとき）：星空マップの星の音色（九九・合成数・
+  //    素数など）そのものをふわりと重ねた、中くらいの長さの澄んだアルペジオ
+  function playQuestionClearArpeggio(factors){
+    const ctx = ensureGameAudioContext();
+    if(!ctx) return;
+    if(!factors || factors.length === 0) return;
+    const interval = 165;
+    factors.forEach((f, i)=>{
+      setTimeout(()=>{
+        playTone(ctx, primeFreq(f), { duration: 0.95, gain: GENTLE_GAIN, attack: 0.02 });
+      }, i * interval);
+    });
+    const tail = (factors.length - 1) * interval + 220;
+    setTimeout(()=>{ playCompletionChord(ctx, factors); }, tail);
+  }
+  function playBubbleClearSound(value){
+    playQuestionClearArpeggio(primeFactorsUniqueGame(value));
+  }
+
+  // ---- リザルト画面のクリア演出（2段階のタイムライン） ----
+  // 星が1つずつ順番に灯るタイミングと完全に同じ値を使い、音と光を同期させる。
+  const RESULT_STAR_STAGGER_MS = 260;
+
+  // STEP1：星が1つずつ灯る瞬間に、その星本来の音（星空マップと同じ生成ロジック）を
+  // ポロン、ポロン、ポロン、ポロン、ポロンと順番に鳴らす。余計な別の効果音は重ねない。
+  function playResultStarReveal(){
+    const ctx = ensureGameAudioContext();
+    if(!ctx || sessionStars.length === 0) return;
+    sessionStars.forEach((star, i)=>{
+      setTimeout(()=>{
+        const factors = primeFactorsUniqueGame(star.n);
+        const freq = primeFreq(factors.length ? factors[0] : star.n);
+        playTone(ctx, freq, { duration: 1.1, gain: GENTLE_GAIN, attack: 0.03 });
+      }, i * RESULT_STAR_STAGGER_MS);
+    });
+  }
+
+  // [確定] ステージクリア達成時（規定回数を満たして「STAGE ○ が ひらきました」となる
+  // 瞬間）だけに鳴らす、全ステージ共通・固定の「きらきら星＋星屑の駆け上がり」。
+  //   ①前半（0〜約2.3秒）＝きらきら星の対話。
+  //     右手＝ド・ド・ソ・ソ・ラ・ラ・ソーー（最後のソだけ長く優美に伸ばす）を、
+  //     素数の澄んだ高音（C5,G5,A5）で380ms周期の、夜空の深呼吸のような
+  //     ゆったりとした歩調で奏でる。
+  //     左手＝濁らない中音域（C4〜G4、オクターブを下げない自然な音域）の
+  //     合成数アルペジオを、右手の拍に合わせた760ms周期でそっと支える
+  //     （音量は右手の半分程度）。
+  //   ②後半＝最後の「ソーー」の余韻が残る中、星屑が下から上へ駆け上がる
+  //     短いアルペジオ（E5→G5→A5、軽やかな60ms刻みはそのまま維持）を
+  //     差し込み、その頂点として最高音C6にピタッと着地する。
+  //   ③結び＝C6から2.8〜3.0秒の澄んだ余韻を残して、静寂へ溶けていく。
+  // 全体の演奏時間は約3.2秒＋余韻。
+  // 音色はすべて星空マップで星をタップしたときと全く同じ、澄んだサイン波
+  // 単音（playTone）のみを使い、太いレイヤーや新規エフェクトは足さない。
+  const STAGE_CLEAR_LEFT_HAND = [
+    { prime: 2, time: 0    }, // C4
+    { prime: 5, time: 760  }, // E4
+    { prime: 3, time: 1520 }, // D4
+    { prime: 7, time: 2280 }  // G4
+  ];
+  // 「きらきら星」冒頭（ド・ド・ソ・ソ・ラ・ラ・ソーー）を、素数の高音で
+  const STAGE_CLEAR_RIGHT_HAND = [
+    { prime: 13, time: 0,    long: false }, // ド (C5)
+    { prime: 13, time: 380,  long: false }, // ド (C5)
+    { prime: 23, time: 760,  long: false }, // ソ (G5)
+    { prime: 23, time: 1140, long: false }, // ソ (G5)
+    { prime: 29, time: 1520, long: false }, // ラ (A5)
+    { prime: 29, time: 1900, long: false }, // ラ (A5)
+    { prime: 23, time: 2280, long: true  }  // ソーー (G5、しっかり長く優美に伸ばす)
+  ];
+  // 星屑の駆け上がり（ちゃらららーん）：下から上へ素早くタッチし、頂点のC6へ着地する
+  // （軽やかなスピード感＝60ms刻みは変えず、「ソーー」の響きの中から始める）
+  const STAGE_CLEAR_STARDUST_RUN = [
+    { prime: 19, time: 2860 }, // E5
+    { prime: 23, time: 2920 }, // G5
+    { prime: 29, time: 2980 }  // A5
+  ];
+  const STAGE_CLEAR_LANDING_PRIME = 31; // C6：駆け上がりの頂点で着地する終着点
+  const STAGE_CLEAR_LANDING_TIME = 3040;
+
+  function playStageClearArpeggio(){
+    const ctx = ensureGameAudioContext();
+    if(!ctx) return;
+
+    // ①左手：濁らない中音域（C4〜G4）の合成数アルペジオ。右手の半分の音量でそっと支える
+    STAGE_CLEAR_LEFT_HAND.forEach(({ prime, time })=>{
+      setTimeout(()=>{
+        playTone(ctx, primeFreq(prime), {
+          duration: 1.3,
+          gain: GENTLE_GAIN * 0.28,
+          attack: 0.05,
+          dry: 0.55,
+          wet: 0.5
+        });
+      }, time);
+    });
+
+    // ②右手：素数の澄んだ「きらきら星」フレーズ（左手とは独立した拍で並行する）
+    STAGE_CLEAR_RIGHT_HAND.forEach(({ prime, time, long })=>{
+      setTimeout(()=>{
+        playTone(ctx, primeFreq(prime), {
+          duration: long ? 1.4 : 0.7, // 最後の「ソーー」だけ、優美に長く伸ばす
+          gain: GENTLE_GAIN * 0.55,
+          attack: 0.015,
+          dry: 0.45,
+          wet: 0.65
+        });
+      }, time);
+    });
+
+    // ②→③のつなぎ：星屑が下から上へサッと駆け上がる、軽やかな一瞬のきらめき
+    STAGE_CLEAR_STARDUST_RUN.forEach(({ prime, time })=>{
+      setTimeout(()=>{
+        playTone(ctx, primeFreq(prime), {
+          duration: 0.35,
+          gain: GENTLE_GAIN * 0.5,
+          attack: 0.01,
+          dry: 0.4,
+          wet: 0.7
+        });
+      }, time);
+    });
+
+    // ③結び：駆け上がりの頂点、最高音C6へピタッと着地し、澄んだ余韻を残して静寂へ溶ける
+    setTimeout(()=>{
+      playTone(ctx, primeFreq(STAGE_CLEAR_LANDING_PRIME), {
+        duration: 2.9,
+        gain: GENTLE_GAIN * 0.9,
+        attack: 0.08,
+        dry: 0.28,
+        wet: 1.0
+      });
+    }, STAGE_CLEAR_LANDING_TIME);
+  }
+
+  function removeNebulaVisual(){
+    mainBubble.classList.remove('nebula-look', 'nebula-outer');
+    mainBubbleWrap.style.width = '';
+    mainBubbleWrap.style.height = '';
+  }
+
+  // ---- 中央の親泡（星雲）を直接タップしたときの共通インタラクション ----
+  mainBubble.addEventListener('click', () => {
+    if(busy) return;
+
+    if(currentIsHard){
+      busy = true;
+      const rect = mainBubble.getBoundingClientRect();
+      triggerBubbleAnim('kachin-flash', 420);
+      hardSparkleFlash(rect.left+rect.width/2, rect.top+rect.height/2);
+      burstParticles(rect.left+rect.width/2, rect.top+rect.height/2, 18, DIAMOND_PARTICLES);
+      setTimeout(() => {
+        celebrateClear(true);
+      }, 300);
+      return;
+    }
+
+    if(foundDivisors.length < currentDivisors.length){
+      triggerBubbleAnim('poyon-bounce', 550);
+    }
+  });
+
+  function handleChoice(i, btn){
+    if(busy || boardCollected[i]) return;
+    const n = boardNumbers[i];
+
+    if(!currentIsHard && currentDivisors.includes(n) && !foundDivisors.includes(n)){
+      busy = true;
+      foundDivisors.push(n);
+      boardCollected[i] = true;
+      btn.classList.add('collected');
+
+      flyIntoBubble(btn, n, () => {
+        triggerBubbleAnim('pulse-correct', 400);
+        playBubbleCorrectSound(n);
+
+        const rect = mainBubble.getBoundingClientRect();
+        burstParticles(rect.left+rect.width/2, rect.top+rect.height/2, 8, currentIsJade ? JADE_PARTICLES : AURORA);
+
+        setTimeout(() => {
+          fillSlot(n);
+
+          if(outsideQueue.length > 0){
+            const nextNum = outsideQueue.shift();
+            boardNumbers[i] = nextNum;
+            boardCollected[i] = false;
+            const label = btn.querySelector('.num-label');
+            btn.setAttribute('aria-label', choiceAria(nextNum));
+            btn.classList.remove('collected');
+            btn.classList.remove('reveal-pop');
+            void btn.offsetWidth;
+            fitTextLayer(btn, label, nextNum, d => d<=1?0.4 : d===2?0.32 : d===3?0.26 : 0.22);
+            btn.classList.add('reveal-pop');
+            setTimeout(() => btn.classList.remove('reveal-pop'), 500);
+          }
+
+          setTimeout(() => {
+            if(foundDivisors.length === currentDivisors.length){
+              celebrateClear(false);
+            } else {
+              busy = false;
+            }
+          }, 350);
+        }, 130);
+      });
+
+      return;
+    }
+
+    // 誤答（かたい星＝素数への挑戦もここに含む）：
+    // 下の選択泡には一切手を加えず、中央の親泡だけが確実にゼリーのように「ぽよん」と弾む。
+    triggerBubbleAnim('jelly-shake', 750);
+    playBubbleWrongSound();
+  }
+
+  function celebrateClear(isHard){
+    const rect = mainBubble.getBoundingClientRect();
+    const particles = isHard ? DIAMOND_PARTICLES : (currentIsJade ? JADE_PARTICLES : CHAMPAGNE_PARTICLES);
+
+    burstParticles(rect.left+rect.width/2, rect.top+rect.height/2, 16, isHard ? DIAMOND_PARTICLES : AURORA);
+    mainBubble.classList.remove('jelly-shake','pulse-correct','poyon-bounce','kachin-flash');
+    mainBubble.classList.add('bubble-pop');
+
+    sessionStars.push({ n: currentValue, jade: currentIsJade, diamond: !!isHard });
+
+    // 規定回数（STAGE_CONF[1].clearTarget）達成による「全問クリア」判定もここで行う。
+    recordStageClear(currentValue);
+
+    setTimeout(() => {
+      renderSoftStar(starFormInner, currentIsJade, isHard);
+      starForm.classList.add('show-star');
+      burstParticles(rect.left+rect.width/2, rect.top+rect.height/2, 22, particles);
+
+      setTimeout(() => {
+        mainBubbleWrap.classList.add('ascend');
+        playBubbleClearSound(currentValue);
+
+        setTimeout(() => {
+          mainBubbleWrap.classList.remove('ascend');
+          mainBubble.classList.remove('bubble-pop');
+          starForm.classList.remove('show-star');
+          nextRound();
+        }, 950);
+
+      }, 900);
+
+    }, 380);
+  }
+
+
+  // [一時的] 動作確認用：プレイ画面から5問解かずに、即座にリザルト画面へ進める。
+  // nextRound()と全く同じ完了パス（ステージ解放判定・showResult呼び出し）を
+  // そのまま通すため、raundを規定回数ぶん進めてからnextRound()を呼ぶだけにする。
+  // 本番リリース時にはこの関数とプレイ画面側のテストボタンをまとめて削除してよい。
+  function debugJumpToResult(){
+    busy = false;
+    round = TOTAL_ROUNDS;
+    nextRound();
+  }
+
+  // [一時的] 動作確認用：本番と全く同じ showResult() の描画・タイミング処理を
+  // そのまま使い、「星の点灯（5音）→ 静寂（間）→ クリアアンサンブル」という
+  // 通しのシークエンスを、実際のプレイ状況によらずいつでも確認できるようにする。
+  // 固定のダミー星データを用意した上で forcePreviewEnsemble=true を渡し、
+  // 実際のステージクリア達成条件を満たしていなくても、クリアアンサンブルを
+  // 強制的に鳴らす。本番リリース時にはこの関数ごと削除してよい。
+  function debugFullResultSequence(){
+    busy = false;
+    playArea.style.display = 'none';
+    sessionStars = [
+      { n: 4,  jade: false, diamond: false },
+      { n: 9,  jade: false, diamond: false },
+      { n: 15, jade: true,  diamond: false },
+      { n: 7,  jade: false, diamond: true  },
+      { n: 11, jade: false, diamond: true  }
+    ];
+    // メッセージ表示も含めて通しで確認できるよう、
+    // 「観測完了」の演出も強制的に発生させる
+    pendingStageClearAnnounce = true;
+    showResult(true);
+  }
+
+  function nextRound(){
+    round++;
+    removeNebulaVisual();
+
+    if(round > TOTAL_ROUNDS){
+      showResult();
+      return;
+    }
+    renderProgress();
+
+    originNumber.style.display = 'none';
+
+    currentValue = roundQueue.shift();
+    const category = categoryOf(currentValue);
+    currentIsHard = category === 'diamond';
+    currentIsJade = category === 'jade';
+
+    currentDivisors = STAGE_CONF[stageId].getDivisors(currentValue);
+    // インライン盤面（丸ボタン）の範囲は「時九九の上限」（2〜9）に一致させる。
+    const boardMax = currentTimesTableMax();
+    outsideQueue = currentIsHard ? [] : shuffle(currentDivisors.filter(d => d > boardMax));
+    foundDivisors = [];
+
+    boardNumbers = [];
+    for(let n=2; n<=boardMax; n++) boardNumbers.push(n);
+    boardCollected = boardNumbers.map(() => false);
+    renderChoices();
+    renderSlots();
+
+    mainNumber.textContent = currentValue;
+    mainBubble.classList.add('arriving');
+    setTimeout(() => mainBubble.classList.remove('arriving'), 500);
+    busy = false;
+  }
+
+  function getGridCenters(w, h){
+    // 画面四隅・上下左右にしっかり余白を残した、内側に凝縮したレイアウト
+    const marginX = w * 0.18;
+    const topReserve = h * 0.22;
+    const bottomReserve = h * 0.18;
+    const innerW = w - marginX*2;
+    const innerH = h - topReserve - bottomReserve;
+    return [
+      { x: marginX + innerW*0.20, y: topReserve + innerH*0.18 },
+      { x: marginX + innerW*0.80, y: topReserve + innerH*0.18 },
+      { x: marginX + innerW*0.50, y: topReserve + innerH*0.50 },
+      { x: marginX + innerW*0.20, y: topReserve + innerH*0.82 },
+      { x: marginX + innerW*0.80, y: topReserve + innerH*0.82 }
+    ];
+  }
+
+  function sizeFor(){
+    return 0.85 + Math.random()*0.18;
+  }
+
+  // 桁数にも星の外枠サイズにも左右されない、視認性重視の固定フォントサイズ
+  const RESULT_NUM_FONT_SIZE = 22;
+
+  // STAGE1を初めて全問クリアした直後だけ、クリア祝福＆観測完了モーダルを表示する。
+  // Result画面表示時だけでなく、テストボタンから「その場で」再生する場合にも使う共通処理。
+  function updateStageUnlockNote(){
+    if(!pendingStageClearAnnounce) return;
+    pendingStageClearAnnounce = false;
+    openStage1ClearModal();
+  }
+
+  function showResult(forcePreviewEnsemble){
+    busy = false;
+    playArea.style.display = 'none';
+
+    resultField.innerHTML = '';
+    const fieldRect = resultField.getBoundingClientRect();
+    const w = fieldRect.width || 400;
+    const h = fieldRect.height || 700;
+    const BASE_SIZE = 72;
+
+    const centers = shuffle(getGridCenters(w, h));
+    const jitterX = w * 0.03;
+    const jitterY = h * 0.03;
+
+    sessionStars.forEach((star, i) => {
+      const c = centers[i % centers.length];
+      const cx = c.x + (Math.random()*2 - 1) * jitterX;
+      const cy = c.y + (Math.random()*2 - 1) * jitterY;
+      const starSize = Math.round(BASE_SIZE * sizeFor());
+
+      const left = Math.max(8, Math.min(w - starSize - 8, cx - starSize/2));
+      const top = Math.max(8, Math.min(h - starSize - 8, cy - starSize/2));
+
+      const el = document.createElement('div');
+      el.className = 'result-star' +
+        (star.diamond ? ' is-prime-star' : star.jade ? ' is-composite-star' : '');
+      el.style.width = starSize + 'px';
+      el.style.height = starSize + 'px';
+      el.style.left = left + 'px';
+      el.style.top = top + 'px';
+      el.style.animationDelay = (i * RESULT_STAR_STAGGER_MS / 1000) + 's';
+      // 完全な直立（0度）だと整列感が強すぎるため、-12〜+12度のランダムな微小傾きを持たせて自然な星座に見せる
+      el.style.setProperty('--final-tilt', ((Math.random()*24) - 12).toFixed(1) + 'deg');
+
+      const shape = document.createElement('div');
+      shape.className = 'soft-star';
+      shape.style.animationDelay = (Math.random()*2) + 's';
+      renderSoftStar(shape, star.jade, star.diamond);
+
+      const num = document.createElement('span');
+      num.className = 'num';
+      num.style.fontSize = RESULT_NUM_FONT_SIZE + 'px';
+      num.textContent = star.n;
+
+      el.appendChild(shape);
+      el.appendChild(num);
+      resultField.appendChild(el);
+    });
+
+    resultOverlay.classList.add('show');
+
+    // STEP1：星が1つずつ、固有音とともに順番に灯る（5問終了の確認。これだけでOK）
+    playResultStarReveal();
+
+    // 最後の星が「鳴り終わる」（点灯の音が余韻まで含めてきちんと静まる）のを待ってから、
+    // さらに約0.9秒ほど息を吸うような静寂（間）を置き、そのあとでクリアアンサンブルを
+    // 静かに流し始める。星の点灯とクリア音が慌ただしく重ならないようにするための間。
+    const RESULT_LAST_STAR_TONE_MS = 1100; // playResultStarReveal内のduration(1.1秒)と合わせる
+    const RESULT_TO_CLEAR_BREATH_MS = 900; // 点灯が鳴り終えてからクリア音楽までの「間」
+    const revealTotal = Math.max(0, sessionStars.length - 1) * RESULT_STAR_STAGGER_MS
+      + RESULT_LAST_STAR_TONE_MS + RESULT_TO_CLEAR_BREATH_MS;
+    setTimeout(() => {
+      // 全問クリアの達成条件を満たしたときだけ、出題内容に一切左右されない固定の
+      // ご褒美アルペジオを流す。forcePreviewEnsembleは動作確認用：本番の達成条件に
+      // 関わらず、通しのシークエンスを強制的に確認できるようにする。
+      if(pendingStageClearAnnounce || forcePreviewEnsemble){
+        playStageClearArpeggio();
+      }
+      updateStageUnlockNote();
+    }, revealTotal);
+  }
+
+  // 泡の見た目の状態（インラインスタイルや演出クラス）を、次のラウンドの前に
+  // 確実に初期化する。
+  function resetBubbleVisualState(){
+    mainBubbleWrap.style.visibility = '';
+    mainBubbleWrap.style.opacity = '';
+    mainBubbleWrap.style.width = '';
+    mainBubbleWrap.style.height = '';
+    mainBubbleWrap.classList.remove('ascend');
+    mainBubble.classList.remove('jelly-shake', 'pulse-correct', 'poyon-bounce', 'kachin-flash', 'bubble-pop', 'arriving', 'nebula-look', 'nebula-outer');
+    starForm.classList.remove('show-star');
+    slotArea.classList.remove('ascend-stock');
+    slotArea.style.opacity = '';
+    originNumber.style.opacity = '';
+    originNumber.style.display = 'none';
+  }
+
+  function restart(){
+    round = 0;
+    sessionStars = [];
+    resetBubbleVisualState();
+    roundQueue = buildStageQueue(stageId);
+    resultOverlay.classList.remove('show');
+    playArea.style.display = '';
+    busy = false;
+    nextRound();
+  }
+
+  function makeStarField(){
+    starField.innerHTML = '';
+    for(let i=0;i<70;i++){
+      const s = document.createElement('div');
+      s.className = 'star-dot';
+      const size = Math.random()*2 + .8;
+      s.style.width = size + 'px';
+      s.style.height = size + 'px';
+      s.style.left = (Math.random()*100) + '%';
+      s.style.top = (Math.random()*100) + '%';
+      s.style.animationDuration = (2 + Math.random()*3) + 's';
+      s.style.animationDelay = (Math.random()*3) + 's';
+      starField.appendChild(s);
+    }
+  }
+
+  // ===========================================================
+  // 画面制御・アプリシェル（Map／クリア案内）
+  // ===========================================================
+
+const STAR_MAP_HTML = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>星空マップ | 星あつめ</title>
+<style>
+  :root{
+    --sky-top:#050818;
+    --sky-mid:#0b1240;
+    --sky-bottom:#01020a;
+    --gold-a:#FFFBF0; --gold-b:#FFEBAF; --gold-c:#F2C773; --gold-d:#DDA24A;
+    --jade-a:#F4FFFA; --jade-b:#C9F5DF; --jade-c:#7FDDB0; --jade-d:#3FAE7E;
+    --diamond-a:#eef8ff; --diamond-b:#8fd8f7;
+    --ui-ink:#dce6ff;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    overflow:hidden;
+    background:#01020a;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    color:var(--ui-ink);
+    -webkit-tap-highlight-color:transparent;
+    touch-action:none;
+  }
+  #app{
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse 120% 90% at 50% 8%, var(--sky-mid) 0%, var(--sky-top) 45%, var(--sky-bottom) 100%);
+    cursor:grab;
+  }
+  #app.grabbing{ cursor:grabbing; }
+
+  /* distant fixed starfield, not affected by pan/zoom */
+  #farfield{ position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  .fardot{
+    position:absolute; border-radius:50%;
+    background:#ffffff;
+    animation:twinkle 5s ease-in-out infinite;
+  }
+  @keyframes twinkle{
+    0%,100%{ opacity:.15; transform:scale(1); }
+    50%{ opacity:.85; transform:scale(1.25); }
+  }
+
+  #viewport{ position:absolute; inset:0; overflow:hidden; }
+  #world{
+    position:absolute; left:0; top:0;
+    width:0; height:0;
+    will-change:transform;
+    transform-origin:0 0;
+  }
+
+  .node{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+  }
+
+  /* --- 星のラッパー：遠景は光の粒子、近景は精細なカット面へクロスフェード ---
+     --star-scale により、ズームインしても星の見た目サイズ自体は
+     一定の上限で頭打ちになる（星同士の間隔だけが広がっていく） */
+  .star-wrap{
+    filter:drop-shadow(0 0 6px rgba(255,255,255,.22));
+    pointer-events:auto;
+    cursor:pointer;
+    transform:translate(-50%,-50%) scale(var(--star-scale, 1));
+  }
+  .star-wrap.cat-gold{ filter:drop-shadow(0 0 7px rgba(242,199,115,.5)); }
+  .star-wrap.cat-jade{ filter:drop-shadow(0 0 7px rgba(127,221,176,.5)); }
+  .star-wrap.cat-diamond{ filter:drop-shadow(0 0 9px rgba(143,216,247,.7)); }
+
+  @keyframes starFlash{
+    0%{ filter:brightness(1); }
+    30%{ filter:brightness(2.6) drop-shadow(0 0 22px rgba(255,255,255,.95)); }
+    100%{ filter:brightness(1); }
+  }
+  .star-wrap.flash{ animation:starFlash .55s ease-out; }
+
+  /* --- 未完成の星（周回数に応じた成長段階のプレースホルダー） ---
+     0回（未実施）は完全非表示（描画しない）。1回クリアで【ちいさな点】、
+     2回クリアで【丸】として、6等星のような柔らかくボケた淡い光球で表す。
+     観測完了の星に数字ラベルが浮かび上がるタイミング（--zoom-label）と
+     完全に足並みを揃えて、同時にふわっと姿を現す（タップには一切反応しない）。 */
+  .star-glyph{
+    position:absolute;
+    border-radius:50%;
+    pointer-events:none;
+    filter:blur(.6px);
+    transition:opacity .6s ease;
+  }
+  .star-glyph.tier-dot{
+    transform:translate(-50%,-50%) scale(calc(var(--star-scale, 1) * 0.34));
+    opacity:calc(var(--zoom-label, 0) * 0.55);
+  }
+  .star-glyph.tier-circle{
+    transform:translate(-50%,-50%) scale(calc(var(--star-scale, 1) * 0.62));
+    opacity:calc(var(--zoom-label, 0) * 0.8);
+  }
+
+  .particle{
+    position:absolute; inset:0;
+    border-radius:50%;
+    filter:blur(.5px);
+    opacity:calc(1 - var(--zoom-detail, 0));
+    transition:opacity .6s ease;
+  }
+  .detail{
+    position:absolute; inset:0;
+    opacity:var(--zoom-detail, 0);
+    transition:opacity .6s ease;
+  }
+  .detail svg{ display:block; width:100%; height:100%; }
+
+  .star-label{
+    position:absolute; inset:14%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:7px;
+    font-weight:800;
+    letter-spacing:-0.03em;
+    color:#001a33;
+    text-shadow:0 1px 0 rgba(255,255,255,0.6), 0 0 6px rgba(255,255,255,0.4);
+    line-height:1;
+    white-space:nowrap;
+    pointer-events:none;
+    opacity:var(--zoom-label, 0);
+    transition:opacity .6s ease;
+  }
+
+  #lines-svg{
+    position:absolute; left:0; top:0;
+    overflow:visible;
+    pointer-events:none;
+  }
+  .star-line{
+    fill:none;
+    stroke:rgba(210,230,255,0.45);
+    /* ワールドのscaleに応じて動的に相殺し、画面上は常に約1pxを維持する */
+    stroke-width:var(--star-line-width, 1px);
+    stroke-linecap:round;
+    filter:drop-shadow(0 0 2px rgba(210,230,255,.5));
+    transition:stroke-dashoffset .55s ease, opacity .35s ease;
+  }
+
+  /* --- the primordial center star "1" --- */
+  .origin-star{
+    position:absolute;
+    transform:translate(-50%,-50%);
+  }
+  .origin-glow{
+    position:absolute; left:50%; top:50%;
+    width:340px; height:340px;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(255,246,214,.55) 0%, rgba(255,225,150,.25) 30%, rgba(180,150,255,.10) 55%, rgba(180,150,255,0) 75%);
+    pointer-events:none;
+  }
+  @keyframes sunPulse{
+    0%{ transform:translate(-50%,-50%) scale(1); opacity:1; }
+    30%{ transform:translate(-50%,-50%) scale(1.55); opacity:1; }
+    100%{ transform:translate(-50%,-50%) scale(1); opacity:1; }
+  }
+  .origin-star.pulse .origin-glow{ animation:sunPulse .95s ease-out; }
+  .origin-inner{
+    position:absolute; left:50%; top:50%;
+    width:150px; height:150px;
+    transform:translate(-50%,-50%);
+  }
+  .origin-svg{ position:absolute; inset:0; }
+  .origin-svg svg{ display:block; width:100%; height:100%; }
+  .origin-label{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    /* 「1」の本体（.origin-inner）は通常の星より一回り大きく頭打ちされるため、
+       同じfont-sizeを指定しても本体の拡大率(--origin-scale)がかかった分だけ
+       数字も一緒に大きく／小さく表示されてしまう。
+       ここでは transform で本体側の拡大率をいったん打ち消し（÷--origin-scale）、
+       通常の星と同じ拡大率（--star-scale）を掛け直すことで、フォントサイズも
+       実際の見かけサイズも、他の完成星の数字ラベルと完全に一致させている。 */
+    font-size:7px;
+    transform:scale(calc(var(--star-scale, 1) / var(--origin-scale, 1)));
+    font-weight:800;
+    color:#001a33;
+    text-shadow:0 1px 0 rgba(255,255,255,0.6), 0 0 6px rgba(255,255,255,0.4);
+    line-height:1;
+    pointer-events:none;
+    opacity:var(--zoom-label, 0);
+    transition:opacity .6s ease;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="farfield"></div>
+  <div id="viewport">
+    <div id="world"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   本編から流用：判定ロジック
+========================================================= */
+function isPrimeNum(v){
+  if(v < 2) return false;
+  for(let d=2; d*d<=v; d++){ if(v % d === 0) return false; }
+  return true;
+}
+function isKukuNum(v){
+  const maxFactor = state.timesTableMax || 9;
+  for(let a=1; a<=maxFactor; a++){
+    if(v % a === 0 && (v / a) <= maxFactor) return true;
+  }
+  return false;
+}
+function categoryOf(v){
+  if(isPrimeNum(v)) return 'diamond'; // 素数
+  if(isKukuNum(v)) return 'gold';      // 九九の星
+  return 'jade';                      // 合成数
+}
+function primeFactorsUnique(v){
+  const factors = [];
+  let x = v;
+  for(let d=2; d*d<=x; d++){
+    if(x % d === 0){
+      factors.push(d);
+      while(x % d === 0) x = x / d;
+    }
+  }
+  if(x > 1) factors.push(x);
+  return factors;
+}
+
+/* =========================================================
+   本編から流用：ゴールド星／翡翠星（ふっくら星）
+========================================================= */
+const CHAMPAGNE_VARIANTS = [
+  ['#FFFBF0','#FFEBAF','#F2C773','#DDA24A'],
+  ['#FFFDF0','#FFF3C4','#F5D68A','#E0B45C'],
+  ['#FFF8E8','#FFE0A0','#E8AE55','#C9862B'],
+  ['#FFFAF2','#FFE3B8','#F0BC7E','#D99A52']
+];
+const JADE_VARIANTS = [
+  ['#F4FFFA','#C9F5DF','#7FDDB0','#3FAE7E'],
+  ['#F2FFF9','#BFF2DA','#71D2A6','#359F71'],
+  ['#F6FFFB','#D2F7E6','#8FE2BE','#4BB98B'],
+  ['#F0FFF8','#B8F0D6','#63C99C','#2E9A6E']
+];
+function generateStarPoints(cx, cy, outerR, innerR, bumps, outerJitter){
+  const pts = [];
+  const total = bumps*2;
+  for(let i=0;i<total;i++){
+    const angle = -Math.PI/2 + i*Math.PI/bumps;
+    let r = i%2===0 ? outerR : innerR;
+    if(outerJitter && i%2===0){ r *= outerJitter[(i/2)|0] || 1; }
+    pts.push({ x: cx + r*Math.cos(angle), y: cy + r*Math.sin(angle) });
+  }
+  return pts;
+}
+function catmullRomPath(pts){
+  const n = pts.length;
+  let d = 'M' + pts[0].x.toFixed(2) + ',' + pts[0].y.toFixed(2) + ' ';
+  for(let i=0;i<n;i++){
+    const p0 = pts[(i-1+n)%n], p1 = pts[i], p2 = pts[(i+1)%n], p3 = pts[(i+2)%n];
+    const cp1x = p1.x + (p2.x - p0.x)/6, cp1y = p1.y + (p2.y - p0.y)/6;
+    const cp2x = p2.x - (p3.x - p1.x)/6, cp2y = p2.y - (p3.y - p1.y)/6;
+    d += 'C' + cp1x.toFixed(2) + ',' + cp1y.toFixed(2) + ' ' + cp2x.toFixed(2) + ',' + cp2y.toFixed(2) + ' ' + p2.x.toFixed(2) + ',' + p2.y.toFixed(2) + ' ';
+  }
+  d += 'Z';
+  return d;
+}
+const PUFFY_STAR_PATH = catmullRomPath(generateStarPoints(100, 100, 86, 62, 5));
+let svgUid = 0;
+
+function buildStarSvg(colors){
+  svgUid++;
+  const id = 'starGrad' + svgUid;
+  return '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs><radialGradient id="' + id + '" cx="38%" cy="32%" r="78%">' +
+    '<stop offset="0%" stop-color="' + colors[0] + '"/>' +
+    '<stop offset="40%" stop-color="' + colors[1] + '"/>' +
+    '<stop offset="72%" stop-color="' + colors[2] + '"/>' +
+    '<stop offset="100%" stop-color="' + colors[3] + '"/>' +
+    '</radialGradient></defs>' +
+    '<path fill="url(#' + id + ')" d="' + PUFFY_STAR_PATH + '"/>' +
+    '</svg>';
+}
+
+/* =========================================================
+   本編から流用：素数専用 11面カット静止クリスタルダイヤモンド星
+========================================================= */
+function buildPrimeDiamondSvg(){
+  svgUid++;
+  const u = svgUid;
+  return '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">' +
+    '<defs>' +
+      '<linearGradient id="fWhite' + u + '" x1="20%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#eef8ff"/></linearGradient>' +
+      '<linearGradient id="fPale' + u + '" x1="15%" y1="0%" x2="85%" y2="100%"><stop offset="0%" stop-color="#e9f6ff"/><stop offset="100%" stop-color="#c3e4fa"/></linearGradient>' +
+      '<linearGradient id="fCyan' + u + '" x1="10%" y1="0%" x2="90%" y2="100%"><stop offset="0%" stop-color="#c9e9fb"/><stop offset="100%" stop-color="#7fc3ec"/></linearGradient>' +
+      '<linearGradient id="fPrismA' + u + '" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="9%" stop-color="#fff2a8"/><stop offset="40%" stop-color="#ffa8d6"/><stop offset="72%" stop-color="#c9aef2"/><stop offset="100%" stop-color="#8fd8f7"/></linearGradient>' +
+      '<linearGradient id="fPrismB' + u + '" x1="100%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="9%" stop-color="#8fd8f7"/><stop offset="40%" stop-color="#c9aef2"/><stop offset="72%" stop-color="#ffa8d6"/><stop offset="100%" stop-color="#fff2a8"/></linearGradient>' +
+      '<linearGradient id="fPrismC' + u + '" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#ffffff"/><stop offset="9%" stop-color="#ffa8d6"/><stop offset="45%" stop-color="#8fd8f7"/><stop offset="78%" stop-color="#c9aef2"/><stop offset="100%" stop-color="#fff2a8"/></linearGradient>' +
+      '<linearGradient id="fTable' + u + '" x1="25%" y1="10%" x2="75%" y2="95%"><stop offset="0%" stop-color="#ffffff" stop-opacity=".9"/><stop offset="45%" stop-color="#eaf6ff" stop-opacity=".68"/><stop offset="100%" stop-color="#cfe9fb" stop-opacity=".5"/></linearGradient>' +
+    '</defs>' +
+    '<g transform="rotate(0 100 100)">' +
+      '<g>' +
+        '<polygon points="100.00,14.00 136.44,49.84 120.04,72.41 100.00,52.70" fill="url(#fWhite' + u + ')"/>' +
+        '<polygon points="136.44,49.84 181.79,73.42 144.98,85.38 120.04,72.41" fill="url(#fPrismA' + u + ')"/>' +
+        '<polygon points="181.79,73.42 158.97,119.16 132.43,110.54 144.98,85.38" fill="url(#fCyan' + u + ')"/>' +
+        '<polygon points="158.97,119.16 150.55,169.58 127.80,138.27 132.43,110.54" fill="url(#fPale' + u + ')"/>' +
+        '<polygon points="150.55,169.58 100.00,162.00 100.00,134.10 127.80,138.27" fill="url(#fPrismB' + u + ')"/>' +
+        '<polygon points="100.00,162.00 49.45,169.58 72.20,138.27 100.00,134.10" fill="url(#fCyan' + u + ')"/>' +
+        '<polygon points="49.45,169.58 41.03,119.16 67.57,110.54 72.20,138.27" fill="url(#fPale' + u + ')"/>' +
+        '<polygon points="41.03,119.16 18.21,73.42 55.02,85.38 67.57,110.54" fill="url(#fPrismC' + u + ')"/>' +
+        '<polygon points="18.21,73.42 63.56,49.84 79.96,72.41 55.02,85.38" fill="url(#fPale' + u + ')"/>' +
+        '<polygon points="63.56,49.84 100.00,14.00 100.00,52.70 79.96,72.41" fill="url(#fWhite' + u + ')"/>' +
+      '</g>' +
+      '<polygon points="100.0,52.7 120.04,72.41 144.98,85.38 132.43,110.54 127.8,138.27 100.0,134.1 72.2,138.27 67.57,110.54 55.02,85.38 79.96,72.41" fill="url(#fTable' + u + ')"/>' +
+    '</g>' +
+  '</svg>';
+}
+
+/* =========================================================
+   新規作成：中心の原初星「1」— 十二芒星コロナ
+========================================================= */
+function buildOriginStarSvg(){
+  svgUid++;
+  const u = svgUid;
+  const outer12 = generateStarPoints(100,100,96,40,12);
+  const inner8  = generateStarPoints(100,100,66,30,8);
+  const p12 = outer12.map(p=>p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ');
+  const p8  = inner8.map(p=>p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ');
+  return '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs>' +
+      '<radialGradient id="oCore'+u+'" cx="50%" cy="46%" r="60%">' +
+        '<stop offset="0%" stop-color="#ffffff"/>' +
+        '<stop offset="35%" stop-color="#fff6d8"/>' +
+        '<stop offset="70%" stop-color="#ffd97a"/>' +
+        '<stop offset="100%" stop-color="#f2a8ff"/>' +
+      '</radialGradient>' +
+      '<radialGradient id="oRay'+u+'" cx="50%" cy="50%" r="55%">' +
+        '<stop offset="0%" stop-color="#fff8e0" stop-opacity="1"/>' +
+        '<stop offset="60%" stop-color="#ffe2a0" stop-opacity=".85"/>' +
+        '<stop offset="100%" stop-color="#d9b8ff" stop-opacity=".55"/>' +
+      '</radialGradient>' +
+      '<filter id="oBlur'+u+'" x="-60%" y="-60%" width="220%" height="220%">' +
+        '<feGaussianBlur stdDeviation="3.2"/>' +
+      '</filter>' +
+    '</defs>' +
+    '<polygon points="'+p12+'" fill="url(#oRay'+u+')" filter="url(#oBlur'+u+')"/>' +
+    '<polygon points="'+p8+'" fill="url(#oCore'+u+')"/>' +
+    '<circle cx="100" cy="100" r="20" fill="#fffef4"/>' +
+  '</svg>';
+}
+
+/* =========================================================
+   銀河の渦（有機的な対数螺旋・複数腕＋ゆらぎ）
+   ・数学的に等間隔なスポーク（放射状の車輪の骨）が出ないよう、
+     少数のアーム（腕）に緩く分岐させたうえで対数螺旋のひねりと
+     決定論的なゆらぎ（ジッター）を加えて自然な渦に見せている。
+   ・n を種にしたハッシュで疑似乱数を作るため、再読み込みしても
+     星の位置は毎回同じになる（星図として安定する）。
+========================================================= */
+const ARMS = 3;                 // 渦の腕の本数
+const R_MIN = 70;                // 中心「1」のすぐ外側の半径
+const R_MAX = 860;                // 最外周の目安半径
+const RADIUS_POWER = 0.55;       // 半径方向の分布（<1で中心寄りをやや密に）
+const SPIRAL_TWIST = 2.35;        // 対数螺旋のひねり係数
+const ANGLE_JITTER_BASE = 0.10;   // 角度ゆらぎ（中心付近）
+const ANGLE_JITTER_SCALE = 0.55;  // 角度ゆらぎ（外周ほど増える）
+const RADIAL_JITTER_BASE = 8;     // 半径ゆらぎ（中心付近, px）
+const RADIAL_JITTER_SCALE = 70;   // 半径ゆらぎ（外周ほど増える, px）
+const ARM_SCATTER_PROB = 0.22;    // 腕に属さず円盤に散らばる星の割合
+
+function hash(seed){
+  const s = Math.sin(seed) * 43758.5453123;
+  return s - Math.floor(s);
+}
+
+const STAR_SIZE = 18; // 星のバウンディングボックス（px, world座標系）
+function spiralPos(n){
+  const t = (n - 2) / 79; // 0..1（体験版は星が1〜81までなので、その範囲で正規化する）
+  const r = R_MIN + (R_MAX - R_MIN) * Math.pow(t, RADIUS_POWER);
+
+  const h1 = hash(n * 12.9898);
+  const h2 = hash(n * 78.233 + 4.17);
+  const h3 = hash(n * 37.719 + 1.71);
+
+  let baseAngle;
+  if(h3 < ARM_SCATTER_PROB){
+    baseAngle = h1 * Math.PI * 2; // 腕の間に散らばる円盤成分
+  } else {
+    const armIndex = n % ARMS;
+    baseAngle = (Math.PI * 2 / ARMS) * armIndex;
+  }
+
+  const swirl = SPIRAL_TWIST * Math.log(1 + r / R_MIN);
+  const angleJitter = (ANGLE_JITTER_BASE + ANGLE_JITTER_SCALE * t) * (h2 - 0.5) * 2;
+  const theta = baseAngle + swirl + angleJitter;
+
+  const radialJitter = (RADIAL_JITTER_BASE + RADIAL_JITTER_SCALE * t) * (h1 - 0.5) * 2;
+  const rr = Math.max(R_MIN * 0.3, r + radialJitter);
+
+  return { x: rr * Math.cos(theta), y: rr * Math.sin(theta) };
+}
+
+/* =========================================================
+   周回数（クリア回数）による表示制限と成長ロジック
+   ・実際のクリア実績は、本編（ゲーム画面）側から postMessage 経由で渡される。
+     このマップ自身はプレイデータを持たず、常に本編のセーブデータ
+     （localStorage）を「表示するだけ」の存在にしている。
+========================================================= */
+const state = {
+  // starProgress：数値ごとの達成率（0〜1以上）。{ "24": 1, "36": 0.5, ... }
+  starProgress: {},
+  timesTableMax: 9  // 時九九（gold判定）の上限
+};
+let syncedOnce = false;
+
+// 体験版は九九（gold）の星のみを表示する。
+function isVisibleForProgress(n){
+  return categoryOf(n) === 'gold';
+}
+
+// 達成率（0〜1以上、全ステージ中の最良値）から、成長段階（tier）を決める。
+// 0→outline（薄い輪郭）、0.5未満→dot（小さな点）、0.5以上1未満→circle（小さな丸）、
+// 1以上→star（完成形）
+function computeTier(ratio){
+  if(!ratio || ratio <= 0) return 'outline';
+  if(ratio >= 1) return 'star';
+  if(ratio < 0.5) return 'dot';
+  return 'circle';
+}
+
+/* =========================================================
+   星の生成
+========================================================= */
+const world = document.getElementById('world');
+const frag = document.createDocumentFragment();
+const starElByNumber = new Map(); // タップ時の演出（発光・音）用に、番号→星要素を素早く引けるようにする
+
+let maxR = 0;
+const positions = new Map();
+for(let n=2; n<=81; n++){
+  const p = spiralPos(n);
+  positions.set(n, p);
+  const r = Math.hypot(p.x, p.y);
+  if(r > maxR) maxR = r;
+}
+const PAD = 140;
+const WORLD_HALF = maxR + PAD;
+const WORLD_SIZE = WORLD_HALF * 2;
+world.style.width = WORLD_SIZE + 'px';
+world.style.height = WORLD_SIZE + 'px';
+
+function place(el, x, y){
+  el.style.left = (WORLD_HALF + x) + 'px';
+  el.style.top  = (WORLD_HALF + y) + 'px';
+}
+
+/* --- 星座線レイヤー：星の背面に描くため、星要素より先にDOMへ追加する --- */
+const linesSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+linesSvg.setAttribute('id', 'lines-svg');
+linesSvg.setAttribute('width', WORLD_SIZE);
+linesSvg.setAttribute('height', WORLD_SIZE);
+frag.appendChild(linesSvg);
+
+// 中心「1」— 原初の星
+const originWrap = document.createElement('div');
+originWrap.className = 'origin-star';
+originWrap.innerHTML =
+  '<div class="origin-glow"></div>' +
+  '<div class="origin-inner">' +
+    '<div class="origin-svg">' + buildOriginStarSvg() + '</div>' +
+    '<div class="origin-label">1</div>' +
+  '</div>';
+place(originWrap, 0, 0);
+frag.appendChild(originWrap);
+
+// 遠景用の淡い光の色（近景の実際のグラデーションと色味を揃える）
+const DIAMOND_PARTICLE = ['#ffffff','#eaf6ff','#8fd8f7'];
+
+// 成長途中の点／丸グリフ用の、カテゴリごとの淡い色味
+// （6等星のような、柔らかくボケた光の「気配」。透明にフェードアウトする
+//  グラデーションそのものが輪郭のボケ感を作る。属性色：九九=イエロー系、
+//  合成数=翡翠、素数=ダイヤモンド）
+const GLYPH_TINTS = {
+  gold:    ['rgba(255,251,240,.95)', 'rgba(255,235,175,.6)',  'rgba(242,199,115,.4)'],
+  jade:    ['rgba(244,255,250,.95)', 'rgba(201,245,223,.6)',  'rgba(127,221,176,.4)'],
+  diamond: ['rgba(255,255,255,.95)', 'rgba(234,246,255,.6)',  'rgba(143,216,247,.45)']
+};
+
+// 星（可変）を入れる専用レイヤー。ステージ切り替え時はここだけを作り直す。
+const starsLayer = document.createElement('div');
+starsLayer.id = 'stars-layer';
+frag.appendChild(starsLayer);
+
+function buildStarNode(n, cat, tier){
+  const {x, y} = positions.get(n);
+
+  if(tier !== 'star'){
+    // 未完成の星：1回クリア＝ちいさな点、2回クリア＝丸。属性色の淡いグラデーションが
+    // 透明へフェードアウトすることで、6等星のような柔らかくボケた光の「気配」になる
+    // （観測完了の星の数字ラベルと同時に、--zoom-labelでふわっと姿を現す。
+    //  タップには一切反応しない）。
+    const glyph = document.createElement('div');
+    glyph.className = 'node star-glyph tier-' + tier;
+    glyph.style.width = STAR_SIZE + 'px';
+    glyph.style.height = STAR_SIZE + 'px';
+    const tint = GLYPH_TINTS[cat] || GLYPH_TINTS.jade;
+    glyph.style.background =
+      'radial-gradient(circle, ' + tint[0] + ' 0%, ' + tint[1] + ' 55%, ' + tint[2] + ' 80%, transparent 100%)';
+    place(glyph, x, y);
+    return glyph;
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'node star-wrap cat-' + cat;
+  wrap.dataset.num = n;
+  wrap.style.width = STAR_SIZE + 'px';
+  wrap.style.height = STAR_SIZE + 'px';
+
+  let svg, particleColors;
+  if(cat === 'diamond'){
+    svg = buildPrimeDiamondSvg();
+    particleColors = DIAMOND_PARTICLE;
+  } else if(cat === 'gold'){
+    // STAGE1は色ムラなく、常に同じシャンパンゴールドの配色で統一する
+    const c = CHAMPAGNE_VARIANTS[0];
+    svg = buildStarSvg(c);
+    particleColors = c;
+  } else {
+    const c = JADE_VARIANTS[n % JADE_VARIANTS.length];
+    svg = buildStarSvg(c);
+    particleColors = c;
+  }
+
+  // 遠景：淡い光の粒子（ズームアウト時はこちらが見える。--zoom-detailでカット面とクロスフェード）
+  const particle = document.createElement('div');
+  particle.className = 'particle';
+  particle.style.background =
+    'radial-gradient(circle, ' + particleColors[0] + ' 0%, ' + particleColors[1] + ' 45%, ' + particleColors[2] + ' 80%, transparent 100%)';
+
+  // 近景：くっきりとしたカット面SVG（ズームインでクロスフェードして現れる）
+  const detail = document.createElement('div');
+  detail.className = 'detail';
+  detail.innerHTML = svg;
+
+  const label = document.createElement('div');
+  label.className = 'star-label';
+  label.textContent = n;
+
+  wrap.appendChild(particle);
+  wrap.appendChild(detail);
+  wrap.appendChild(label);
+  place(wrap, x, y);
+  return wrap;
+}
+
+// アンロック済み範囲・全ステージ横断の達成率（モック）にもとづき、星レイヤーを丸ごと作り直す
+function renderStars(){
+  clearStarLines();
+  starsLayer.innerHTML = '';
+  starElByNumber.clear();
+
+  const starFrag = document.createDocumentFragment();
+
+  for(let n=2; n<=81; n++){
+    if(!isVisibleForProgress(n)) continue;
+    const cat = categoryOf(n);
+    const ratio = state.starProgress[n] || 0;
+    const tier = computeTier(ratio);
+    if(tier === 'outline') continue; // 未実施（0回）の星は完全非表示。描画自体しない。
+    const el = buildStarNode(n, cat, tier);
+    starFrag.appendChild(el);
+    if(tier === 'star'){ starElByNumber.set(n, el); }
+  }
+  starsLayer.appendChild(starFrag);
+}
+
+world.appendChild(frag);
+renderStars(); // 初回描画（STAGE 1・モックのクリア実績で開始）
+
+
+/* =========================================================
+   因数をつなぐ星座線（シルバーのコンステレーションライン）
+   ・合成数の星をタップすると、重複を除いた素因数へ向かって
+     1本ずつ順番にスッと線が伸びる（例：28 → 2, 7）。
+   ・背景や他の星をタップすると消える。
+   ・stroke-width をワールドのscaleに応じて動的に相殺することで、
+     ズーム倍率によらず画面上は常に約1pxの細い糸を維持する
+     （vector-effectはCSSのtransformスケールを正しく相殺しない
+       ブラウザがあるため、この動的計算を主たる保証手段とする）。
+========================================================= */
+const ARPEGGIO_INTERVAL = 80; // ms（アルペジオの音と線のアニメーションを同期させる間隔）
+
+function clearStarLines(){
+  while(linesSvg.firstChild) linesSvg.removeChild(linesSvg.firstChild);
+}
+
+function flashStar(el){
+  if(!el) return;
+  el.classList.remove('flash');
+  // 強制リフローでアニメーションを再トリガーできるようにする
+  void el.offsetWidth;
+  el.classList.add('flash');
+  setTimeout(()=>{ el.classList.remove('flash'); }, 600);
+}
+function flashStarByNumber(n){
+  flashStar(starElByNumber.get(n));
+}
+function pulseSun(){
+  originWrap.classList.remove('pulse');
+  void originWrap.offsetWidth;
+  originWrap.classList.add('pulse');
+  setTimeout(()=>{ originWrap.classList.remove('pulse'); }, 1000);
+}
+
+/* =========================================================
+   クリスタル・アルペジオ効果音（Web Audio API / 外部音源なし）
+   ・サイン波（基音）＋1オクターブ上のサイン波（きらめき）＋
+     トライアングル波（質感）を重ね、短いアタックとやわらかい
+     指数減衰でベル／オルゴール風の音色を作る。
+   ・簡易的な畳み込みリバーブ（ノイズから生成）を薄くセンドし、
+     余韻に透明感を加えている。
+   ・素数はユニークな素因数の昇順インデックスをペンタトニック
+     スケール（C,D,E,G,A）にマッピングし、5音ごとにオクターブが
+     上がる（2:C5, 3:D5, 5:E5, 7:G5, 11:A5, 13:C6 …）。
+========================================================= */
+let audioCtx = null, masterGain = null, reverbNode = null;
+
+function buildReverbImpulse(ctx, duration, decay){
+  const rate = ctx.sampleRate;
+  const length = Math.max(1, Math.floor(rate * duration));
+  const buffer = ctx.createBuffer(2, length, rate);
+  for(let ch=0; ch<2; ch++){
+    const data = buffer.getChannelData(ch);
+    for(let i=0;i<length;i++){
+      data[i] = (Math.random()*2 - 1) * Math.pow(1 - i/length, decay);
+    }
+  }
+  return buffer;
+}
+
+function ensureAudioContext(){
+  if(!audioCtx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    audioCtx = new AC();
+    masterGain = audioCtx.createGain();
+    // Play画面の邪魔にならない静かな背景アンビエントとして鳴らすため、
+    // 思い切って低めに設定する（以前の0.6は、Play画面側の別システム
+    // gameMasterGain と混同して調整してしまっており、こちら本来の
+    // 星空マップ本体の出力ゲインは変更できていなかった）。
+    masterGain.gain.value = 0.09;
+
+    // ソフトリミッター：連打で音が重なっても割れないようにする
+    const limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.value = -20;
+    limiter.knee.value = 24;
+    limiter.ratio.value = 6;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.25;
+    masterGain.connect(limiter);
+    limiter.connect(audioCtx.destination);
+
+    reverbNode = audioCtx.createConvolver();
+    reverbNode.buffer = buildReverbImpulse(audioCtx, 1.8, 3.2);
+    const reverbOut = audioCtx.createGain();
+    reverbOut.gain.value = 0.28;
+    reverbNode.connect(reverbOut);
+    reverbOut.connect(masterGain);
+  }
+  // ブラウザの自動再生ポリシー対応：初回タップ/クリックで必ずresumeする
+  if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+  return audioCtx;
+}
+
+// 素数 → 音階（低音から高音へ、ペンタトニックスケール）
+// 全体を1オクターブ下げ、中高音域に収めて耳あたりをやわらかくしている。
+// 5音ごとにオクターブが上がるが、オクターブ7で頭打ちにして
+// 大きな素数（例：997など）でも耳に痛い超高音域まで上がらないようにしている。
+const PENTATONIC_SEMITONES = [0, 2, 4, 7, 9]; // C, D, E, G, A
+const PITCH_OCTAVE_CEILING_TIER = 3; // オクターブ4〜7（tier 0〜3）で頭打ち
+function primeIndexOf(p){
+  let idx = -1;
+  for(let v=2; v<=p; v++){ if(isPrimeNum(v)){ idx++; } }
+  return idx;
+}
+function midiToFreq(midi){ return 440 * Math.pow(2, (midi - 69) / 12); }
+function primeFreq(p){
+  const idx = primeIndexOf(p);
+  const degree = idx % 5;
+  const tier = Math.min(Math.floor(idx / 5), PITCH_OCTAVE_CEILING_TIER);
+  const octave = 4 + tier;
+  const semitone = PENTATONIC_SEMITONES[degree];
+  const midi = (octave + 1) * 12 + semitone;
+  return midiToFreq(midi);
+}
+
+function playTone(ctx, freq, opts){
+  opts = opts || {};
+  const now = ctx.currentTime;
+  const duration = opts.duration || 0.8;
+  const peak = opts.gain !== undefined ? opts.gain : 0.25;
+  const attack = opts.attack || 0.005;
+
+  const noteGain = ctx.createGain();
+  noteGain.gain.setValueAtTime(0.0001, now);
+  noteGain.gain.linearRampToValueAtTime(peak, now + attack);
+  noteGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  // ローパスフィルター：アタックの一瞬だけ明るく、すぐに丸くやわらかい音色へ落ち着く
+  // （木製オルゴール／カリンバのような、角の取れたポロンとした質感を作る）
+  const toneFilter = ctx.createBiquadFilter();
+  toneFilter.type = 'lowpass';
+  toneFilter.Q.value = 0.4;
+  toneFilter.frequency.setValueAtTime(freq * 4.5, now);
+  toneFilter.frequency.exponentialRampToValueAtTime(Math.max(freq * 1.6, 400), now + 0.22);
+
+  const dryGain = ctx.createGain(); dryGain.gain.value = 0.75;
+  const wetGain = ctx.createGain(); wetGain.gain.value = 0.5;
+  toneFilter.connect(dryGain); dryGain.connect(masterGain);
+  toneFilter.connect(wetGain); wetGain.connect(reverbNode);
+
+  // 基音（サイン波）
+  const osc1 = ctx.createOscillator();
+  osc1.type = 'sine';
+  osc1.frequency.setValueAtTime(freq, now);
+  osc1.connect(noteGain);
+  noteGain.connect(toneFilter);
+  const stop1 = now + duration + 0.05;
+  osc1.start(now); osc1.stop(stop1);
+
+  // 1オクターブ上のきらめき（サイン波、ごく控えめ）
+  const osc2 = ctx.createOscillator();
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(freq * 2, now);
+  const shimmerGain = ctx.createGain();
+  shimmerGain.gain.setValueAtTime(0.0001, now);
+  shimmerGain.gain.linearRampToValueAtTime(peak * 0.14, now + attack);
+  shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.7);
+  osc2.connect(shimmerGain); shimmerGain.connect(toneFilter);
+  const stop2 = now + duration * 0.7 + 0.05;
+  osc2.start(now); osc2.stop(stop2);
+
+  // トライアングル波でやわらかな質感を少しだけ足す（キンつきを避けるため控えめに）
+  const osc3 = ctx.createOscillator();
+  osc3.type = 'triangle';
+  osc3.frequency.setValueAtTime(freq, now);
+  const triGain = ctx.createGain();
+  triGain.gain.setValueAtTime(0.0001, now);
+  triGain.gain.linearRampToValueAtTime(peak * 0.10, now + attack);
+  triGain.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.6);
+  osc3.connect(triGain); triGain.connect(toneFilter);
+  const stop3 = now + duration * 0.6 + 0.05;
+  osc3.start(now); osc3.stop(stop3);
+
+  let osc4 = null, subGain = null, stop4 = 0;
+  if(opts.warm){
+    // 太陽専用：1オクターブ下のサブ層であたたかさを加える
+    osc4 = ctx.createOscillator();
+    osc4.type = 'sine';
+    osc4.frequency.setValueAtTime(freq / 2, now);
+    subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(0.0001, now);
+    subGain.gain.linearRampToValueAtTime(peak * 0.55, now + attack * 3);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc4.connect(subGain); subGain.connect(toneFilter);
+    stop4 = now + duration + 0.05;
+    osc4.start(now); osc4.stop(stop4);
+  }
+
+  osc1.onended = ()=>{
+    try{
+      osc1.disconnect(); noteGain.disconnect();
+      toneFilter.disconnect(); dryGain.disconnect(); wetGain.disconnect();
+    }catch(err){}
+  };
+  osc2.onended = ()=>{ try{ osc2.disconnect(); shimmerGain.disconnect(); }catch(err){} };
+  osc3.onended = ()=>{ try{ osc3.disconnect(); triGain.disconnect(); }catch(err){} };
+  if(osc4){ osc4.onended = ()=>{ try{ osc4.disconnect(); subGain.disconnect(); }catch(err){} }; }
+}
+
+// 素数の星：澄んだ1音が「チリン♪」
+function playPrimeChime(ctx, n){
+  playTone(ctx, primeFreq(n), { duration: 0.9, gain: 0.3, attack: 0.005 });
+}
+
+// 合成数の星：完了時の「シャラ〜ン」という柔らかな和音
+function playCompletionChord(ctx, factors){
+  const freqs = factors.map((f)=> primeFreq(f) * 2); // 1オクターブ上げてきらめかせる
+  // 複数音を同時に鳴らすと単純に音量が足し合わされて突出してしまうため、
+  // 音の数に応じて1音あたりのゲインを下げ、合計の音量が単音と同じ優しい
+  // レベルに収まるようにする（素因数の多い数値ほど大音量になっていた不具合の対策。
+  // Play画面側に移植した同名関数では既に対策済みだったが、この星空マップ本体側の
+  // オリジナル実装には反映されていなかった）。
+  const perNoteGain = 0.16 / Math.sqrt(freqs.length);
+  freqs.forEach((fr)=>{
+    playTone(ctx, fr, { duration: 1.15, gain: perNoteGain, attack: 0.01 });
+  });
+  const topFreq = Math.max.apply(null, freqs) * 1.5; // 完全五度上のきらめきを添える
+  playTone(ctx, topFreq, { duration: 1.25, gain: perNoteGain * 0.75, attack: 0.01 });
+}
+
+// 太陽「1」：あたたかく深い「フォ〜〜ン…」（A3 = 220Hz、生命の基準音とされる「ラ」）
+function playSunTone(ctx){
+  const freq = midiToFreq(57); // A3
+  playTone(ctx, freq, { duration: 3.2, gain: 0.35, attack: 0.02, warm: true });
+}
+
+/* --- タップ演奏ロジック --- */
+function playCompositeSequence(n, starEl){
+  clearStarLines();
+  const ctx = ensureAudioContext();
+  const src = positions.get(n);
+  if(!src) return;
+  const factors = primeFactorsUnique(n);
+  const x1 = WORLD_HALF + src.x, y1 = WORLD_HALF + src.y;
+  // 星座線はSTAGE3以降（合成数・素数の星）の機能のため、体験版（九九のみ）では無効。
+  const linesFeatureEnabled = false;
+
+  factors.forEach((f, i)=>{
+    const tgt = positions.get(f);
+    const partnerEl = starElByNumber.get(f); // 完成星（tier==='star'）だけがここに登録されている
+    const canDrawLine = linesFeatureEnabled && !!tgt && !!partnerEl;
+
+    let line = null;
+    if(canDrawLine){
+      const x2 = WORLD_HALF + tgt.x, y2 = WORLD_HALF + tgt.y;
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'star-line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      line.style.strokeDasharray = len;
+      line.style.strokeDashoffset = len;
+      linesSvg.appendChild(line);
+    }
+
+    // 素因数へ1本ずつ順番に伸ばし、同じタイミングでアルペジオの音を鳴らす
+    // （相手が未完成で線が引けない場合も、音とタイミングは変えない）
+    setTimeout(()=>{
+      if(line){
+        requestAnimationFrame(()=>{
+          requestAnimationFrame(()=>{ line.style.strokeDashoffset = '0'; });
+        });
+      }
+      if(ctx){ playTone(ctx, primeFreq(f), { duration: 0.7, gain: 0.22 }); }
+      if(canDrawLine){ flashStarByNumber(f); }
+    }, i * ARPEGGIO_INTERVAL);
+  });
+
+  // すべての糸が結ばれた瞬間に「シャラ〜ン」と鳴らして完了（線の有無に関わらず必ず鳴らす）
+  const completeDelay = factors.length > 0 ? (factors.length - 1) * ARPEGGIO_INTERVAL + 260 : 0;
+  setTimeout(()=>{
+    if(ctx){ playCompletionChord(ctx, factors); }
+    flashStar(starEl);
+  }, completeDelay);
+}
+
+document.getElementById('app').addEventListener('click', (e)=>{
+  const ctx = ensureAudioContext(); // 初回タップでAudioContextを生成・resume
+  const sunEl = e.target.closest ? e.target.closest('.origin-star') : null;
+  const starEl = e.target.closest ? e.target.closest('.star-wrap') : null;
+
+  if(sunEl){
+    clearStarLines();
+    if(ctx){ playSunTone(ctx); }
+    pulseSun();
+  } else if(starEl && starEl.dataset.num){
+    const n = parseInt(starEl.dataset.num, 10);
+    if(isPrimeNum(n)){
+      clearStarLines(); // 素数の星自体には向かう先がない
+      if(ctx){ playPrimeChime(ctx, n); }
+      flashStar(starEl);
+    } else {
+      // 音とフラッシュは全ステージ共通。線を引くかどうかだけが
+      // playCompositeSequence内部でステージ・相手の完成状況に応じて決まる。
+      playCompositeSequence(n, starEl);
+    }
+  } else {
+    clearStarLines();
+  }
+});
+
+/* =========================================================
+   本編（親ウィンドウ）との連携
+   ・sync：プレイデータ（クリア回数・解放状況）を受け取って反映する。
+     マップは操作用のボタンを持たず、本編で選ばれているステージの
+     星をそのまま映す、見るだけのミニマルな画面にする。
+========================================================= */
+window.addEventListener('message', (e)=>{
+  const data = e.data;
+  if(!data || typeof data !== 'object') return;
+
+  if(data.type === 'sync'){
+    state.starProgress = data.starProgress || {};
+    if(typeof data.timesTableMax === 'number') state.timesTableMax = data.timesTableMax;
+    syncedOnce = true;
+    renderStars();
+  }
+});
+
+/* =========================================================
+   遠方の瞬く星屑フィールド（背景・パン非連動）
+========================================================= */
+(function buildFarfield(){
+  const layer = document.getElementById('farfield');
+  const count = 160;
+  const w = window.innerWidth, h = window.innerHeight;
+  const df = document.createDocumentFragment();
+  for(let i=0;i<count;i++){
+    const d = document.createElement('div');
+    d.className = 'fardot';
+    const size = Math.random()*2 + 0.6;
+    d.style.width = size + 'px';
+    d.style.height = size + 'px';
+    d.style.left = (Math.random()*w) + 'px';
+    d.style.top = (Math.random()*h) + 'px';
+    d.style.animationDuration = (3 + Math.random()*5) + 's';
+    d.style.animationDelay = (Math.random()*5) + 's';
+    df.appendChild(d);
+  }
+  layer.appendChild(df);
+})();
+
+/* =========================================================
+   パン & ズーム
+========================================================= */
+const app = document.getElementById('app');
+const viewport = document.getElementById('viewport');
+
+let scale = 1, panX = 0, panY = 0;
+const MIN_SCALE = 0.05, MAX_SCALE = 26;
+
+function applyTransform(){
+  world.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + scale + ')';
+}
+
+/* --- 星のサイズ上限・ズーム連動の表示切り替え ---
+   星の見かけサイズは「画面上の絶対px」で頭打ちにする（TARGET_STAR_PX）。
+   これによりビューポートの大きさに関わらず、必ずタップしやすく
+   3桁の数字がゆったり収まるサイズ（約48〜56px）まで素直に拡大してから
+   頭打ちになり、それ以降のズームでは星同士の間隔だけが広がっていく。
+
+   観測完了の星は、ズームに応じて次の段階でクロスフェードする：
+     1. 引き　　：淡い光の点（.particle）＝銀河の渦が見える全体表示
+     2. 中ズーム：くっきりしたカット面SVG（.detail）へフェード
+     3. 寄り　　：カット面はそのまま、数字ラベル（.star-label）が浮かび上がる
+   未完成の星（ちいさな点／丸のプレースホルダー）は、この3.と完全に同じ
+   タイミング（--zoom-label）で、6等星のようにふわっと同時に姿を現す
+   （それより手前ではSTAGE1〜3同様ずっと非表示のまま）。 */
+let baseScale = 1;
+const DETAIL_LOW_MULT = 0.4;    // baseScale比：この倍率からカット面が現れ始める（遠景→中景）
+const DETAIL_HIGH_MULT = 0.85;  // baseScale比：この倍率で完全にカット面へ（既定表示に入る前に完了）
+const TARGET_STAR_PX = 52;      // 星の見かけサイズが頭打ちになる、画面上の絶対サイズ(px)
+const CAP_SCALE = TARGET_STAR_PX / STAR_SIZE; // 上記を満たす絶対スケール値（ビューポートに依存しない）
+const DEFAULT_STAR_PX = 34;     // デフォルト画角で星がしっかり肉眼で認識できるサイズ(px)
+const DEFAULT_ZOOM_SCALE = DEFAULT_STAR_PX / STAR_SIZE; // 上記を満たす絶対スケール値
+const LABEL_SCALE_MULT = 0.62; // CAP_SCALE比：星がまだ頭打ち前で少し小さいこの時点から数字ラベルを表示する
+const LABEL_SCALE = CAP_SCALE * LABEL_SCALE_MULT;
+
+function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+
+// 中心「1」の太陽：本体（.origin-inner）は、通常の星の頭打ちサイズ（TARGET_STAR_PX）
+// より一回り大きい、堂々とした絶対pxで頭打ちにする（baseScaleのような画面に応じて
+// 変わる相対値には依存しない＝定義が変わっても連動して壊れない）。
+// ※通常の星と完全に同じサイズにすると、中心星としての存在感が弱くなりすぎる。
+//   かといって以前のbaseScale相対の計算は、baseScaleの定義変更に連動して
+//   肥大化する事故を起こしたため（本体だけで画面の半分近くを覆うほど巨大化）、
+//   ここでも通常の星と同じ「絶対px基準」を踏襲しつつ、目標pxだけを大きくする。
+const TARGET_ORIGIN_PX = 84;  // 「1」の本体が頭打ちになる、画面上の絶対サイズ(px)
+const ORIGIN_NATIVE_PX = 150; // .origin-innerのネイティブCSSサイズ(px)
+const ORIGIN_CAP_SCALE = TARGET_ORIGIN_PX / ORIGIN_NATIVE_PX; // 上記を満たす絶対スケール値
+
+function updateZoomVisuals(){
+  // カット面フェード：baseScale比のDETAIL_LOW_MULT〜DETAIL_HIGH_MULTの間で、
+  // 淡い光の点（遠景）からくっきりしたカット面SVG（近景）へクロスフェードする。
+  const detail = clamp01((scale - baseScale*DETAIL_LOW_MULT) / (baseScale*(DETAIL_HIGH_MULT - DETAIL_LOW_MULT)));
+  world.style.setProperty('--zoom-detail', detail.toFixed(3));
+
+  // 星の見かけサイズ：絶対スケールCAP_SCALEを超えたら頭打ち（≒画面上でTARGET_STAR_PXで固定）
+  const starFactor = Math.min(1, CAP_SCALE / scale);
+  world.style.setProperty('--star-scale', starFactor.toFixed(4));
+
+  // 数字ラベル：星がまだ頭打ち前で少し小さいLABEL_SCALEの時点から、一斉に
+  // フェードイン（CSSのtransitionでふわりと）。未完成の星（ちいさな点／丸）も、
+  // この--zoom-labelと完全に同じタイミングで同時にふわっと姿を現す
+  // （CSS側で--zoom-labelを共有して参照している）。
+  const label = scale >= LABEL_SCALE ? 1 : 0;
+  world.style.setProperty('--zoom-label', label);
+
+  // 星座線：ワールドのscaleを動的に相殺し、画面上は常に約1pxの太さを保つ
+  const lineWidth = 1 / scale;
+  world.style.setProperty('--star-line-width', lineWidth.toFixed(4) + 'px');
+
+  // 「1」の星：通常の星より一回り大きい絶対スケール基準（ORIGIN_CAP_SCALE）を
+  // 超えたら頭打ち。数字ラベルの出現タイミング自体は他の星と共通の
+  // --zoom-labelがそのまま担うため、ここでは本体サイズの上限だけを制御する。
+  // originFactorはCSS変数（--origin-scale）としても公開し、.origin-label側で
+  // 「本体の拡大率」を打ち消して「通常の星と全く同じフォントサイズ」を
+  // 実現するために使う（詳細は.origin-labelのCSSコメント参照）。
+  const originFactor = Math.min(1, ORIGIN_CAP_SCALE / scale);
+  world.style.setProperty('--origin-scale', originFactor.toFixed(4));
+  originWrap.style.transform = 'translate(-50%,-50%) scale(' + originFactor.toFixed(4) + ')';
+}
+
+// 初期表示：STAGE1（九九の星たち）がしっかり肉眼で認識できる距離まで
+// ズームインした画角をデフォルトにする（銀河全体を収めようとして
+// 遠く引きすぎることのないよう、固定の見かけサイズから逆算する）。
+function centerView(){
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+  baseScale = DEFAULT_ZOOM_SCALE;
+  scale = baseScale;
+  panX = vw/2 - WORLD_HALF * scale;
+  panY = vh/2 - WORLD_HALF * scale;
+  applyTransform();
+  updateZoomVisuals();
+}
+centerView();
+window.addEventListener('resize', centerView);
+
+// --- マウスドラッグ ---
+let dragging = false, lastX = 0, lastY = 0;
+app.addEventListener('mousedown', (e)=>{
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  app.classList.add('grabbing');
+});
+window.addEventListener('mousemove', (e)=>{
+  if(!dragging) return;
+  panX += e.clientX - lastX;
+  panY += e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  applyTransform();
+});
+window.addEventListener('mouseup', ()=>{ dragging = false; app.classList.remove('grabbing'); });
+
+// --- ホイールズーム（カーソル位置基準） ---
+app.addEventListener('wheel', (e)=>{
+  e.preventDefault();
+  const rect = viewport.getBoundingClientRect();
+  const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+  const factor = Math.exp(-e.deltaY * 0.0015);
+  const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * factor));
+  const ratio = newScale / scale;
+  panX = cx - (cx - panX) * ratio;
+  panY = cy - (cy - panY) * ratio;
+  scale = newScale;
+  applyTransform();
+  updateZoomVisuals();
+}, { passive:false });
+
+// --- タッチ：ドラッグ & ピンチ ---
+let touchMode = null;
+let touchLastX = 0, touchLastY = 0;
+let pinchStartDist = 0, pinchStartScale = 1;
+let pinchCenter = {x:0,y:0};
+
+function touchDist(t0, t1){
+  return Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+}
+function touchMid(t0, t1, rect){
+  return { x:(t0.clientX + t1.clientX)/2 - rect.left, y:(t0.clientY + t1.clientY)/2 - rect.top };
+}
+
+app.addEventListener('touchstart', (e)=>{
+  const rect = viewport.getBoundingClientRect();
+  if(e.touches.length === 1){
+    touchMode = 'pan';
+    touchLastX = e.touches[0].clientX;
+    touchLastY = e.touches[0].clientY;
+  } else if(e.touches.length >= 2){
+    touchMode = 'pinch';
+    pinchStartDist = touchDist(e.touches[0], e.touches[1]);
+    pinchStartScale = scale;
+    pinchCenter = touchMid(e.touches[0], e.touches[1], rect);
+  }
+}, { passive:true });
+
+app.addEventListener('touchmove', (e)=>{
+  e.preventDefault();
+  const rect = viewport.getBoundingClientRect();
+  if(touchMode === 'pan' && e.touches.length === 1){
+    const dx = e.touches[0].clientX - touchLastX;
+    const dy = e.touches[0].clientY - touchLastY;
+    panX += dx; panY += dy;
+    touchLastX = e.touches[0].clientX;
+    touchLastY = e.touches[0].clientY;
+    applyTransform();
+  } else if(touchMode === 'pinch' && e.touches.length >= 2){
+    const dist = touchDist(e.touches[0], e.touches[1]);
+    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, pinchStartScale * (dist / pinchStartDist)));
+    const ratio = newScale / scale;
+    panX = pinchCenter.x - (pinchCenter.x - panX) * ratio;
+    panY = pinchCenter.y - (pinchCenter.y - panY) * ratio;
+    scale = newScale;
+    applyTransform();
+    updateZoomVisuals();
+  }
+}, { passive:false });
+
+app.addEventListener('touchend', (e)=>{
+  if(e.touches.length === 0) touchMode = null;
+  else if(e.touches.length === 1){
+    touchMode = 'pan';
+    touchLastX = e.touches[0].clientX;
+    touchLastY = e.touches[0].clientY;
+  }
+});
+<\/script>
+</body>
+</html>`;
+
+  // ---- 星空マップ（iframeで埋め込んだ完成版マップ画面との連携） ----
+  let starMapLoaded = false;   // iframe側のスクリプトが読み込み終わったか
+
+  function buildStarMapPayload(){
+    // 体験版は九九（1〜81）単体のみ。星空マップは常にgold（九九の星）のみ表示する。
+    const target = STAGE_CONF[1].clearTarget;
+    const stars = saveData.stars || {};
+    const starProgress = {};
+    Object.keys(stars).forEach(key => {
+      starProgress[key] = target > 0 ? (stars[key] / target) : 0;
+    });
+
+    return {
+      type: 'sync',
+      starProgress: starProgress,
+      timesTableMax: STAGE1_TIMES_TABLE_MAX
+    };
+  }
+  function sendToStarMap(msg){
+    if(starMapFrame.contentWindow){
+      starMapFrame.contentWindow.postMessage(msg, '*');
+    }
+  }
+  function syncStarMap(){
+    if(!starMapLoaded) return;
+    sendToStarMap(buildStarMapPayload());
+  }
+  starMapFrame.addEventListener('load', () => {
+    starMapLoaded = true;
+    syncStarMap();
+  });
+
+  // [一時的] 動作確認用：STAGE1（九九）の全数字を規定回数クリア済みにして、
+  // 「全問クリア」演出（STAGE 1 観測完了モーダル）をすぐに確認できるようにする。
+  function testForceStage1AllCleared(){
+    const target = STAGE_CONF[1].clearTarget;
+    if(!saveData.stars) saveData.stars = {};
+    STAGE_CONF[1].pool.forEach(v => { saveData.stars[String(v)] = target; });
+    saveData.observed = true;
+    persistSaveData();
+    pendingStageClearAnnounce = true;
+    syncStarMap();
+  }
+
+  function openMap(){
+    mapScreen.classList.add('show');
+    if(!starMapFrame.getAttribute('srcdoc')){
+      starMapFrame.setAttribute('srcdoc', STAR_MAP_HTML);
+    } else if(starMapLoaded){
+      syncStarMap();
+    }
+  }
+  function closeMap(){
+    mapScreen.classList.remove('show');
+  }
+
+  // ---- STAGE 1 観測完了モーダル ----
+  function openStage1ClearModal(){
+    paywallModal.classList.add('show');
+  }
+  function closeStage1ClearModal(){
+    paywallModal.classList.remove('show');
+  }
+
+  // ---- イベント配線 ----
+  telescopeBtn.addEventListener('click', openMap);
+  resultMapBtn.addEventListener('click', openMap);
+  mapBackBtn.addEventListener('click', closeMap);
+
+  paywallCloseBtn.addEventListener('click', closeStage1ClearModal);
+  paywallModal.addEventListener('click', (e) => { if(e.target === paywallModal) closeStage1ClearModal(); });
+
+  // [一時的] 動作確認用テストボタン：本番リリース時にはこの配線ごと削除してよい
+  debugForceStage1Btn.addEventListener('click', () => {
+    testForceStage1AllCleared();
+    playStageClearArpeggio();
+    updateStageUnlockNote();
+  });
+  // プレイ画面（出題中）用：5問解かずに即座にリザルトへ進む／通しのシークエンスを確認する
+  debugJumpToResultBtn.addEventListener('click', () => {
+    debugJumpToResult();
+  });
+  debugFullResultSequenceBtn.addEventListener('click', () => {
+    debugFullResultSequence();
+  });
+
+  replayBtn.addEventListener('click', restart);
+
+  // ---- 起動シーケンス ----
+  loadSaveData();
+  updateHeaderTitle();
+  applyStaticAriaLabels();
+  makeStarField();
+  restart();
+})();
+</script>
+
+</body>
+</html>
